@@ -1,0 +1,32 @@
+name: appli_gdc
+description: Application de la chorale GDC (bibliothèque de chants, écoute, livrets).
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: any
+  syncfusion_flutter_pdf: any
+  syncfusion_flutter_pdfviewer: any
+  youtube_player_iframe: any
+  just_audio: any
+  file_picker: any
+  url_launcher: any
+  intl: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: any
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/Amiri-Regular.ttf
+    - assets/fonts/Amiri-Bold.ttf
