@@ -15,6 +15,12 @@ flutter build apk --release # fichier .apk à installer sur Android
 flutter build web --no-web-resources-cdn
 ```
 
+## Version web en ligne
+
+Chaque envoi sur la branche `main` reconstruit et publie automatiquement la version web
+sur GitHub Pages (voir `.github/workflows/deploy-web.yml`) :
+https://faazik11.github.io/appli-gdc/
+
 ## Comptes et rôles
 
 - Le **premier compte créé** devient automatiquement **admin**.
