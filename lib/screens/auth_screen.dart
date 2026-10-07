@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -28,6 +29,8 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _email.text.trim(),
           password: _password.text,
           data: {'full_name': _name.text.trim()},
+          // Le lien de confirmation ramène sur l'appli web plutôt que sur localhost.
+          emailRedirectTo: kIsWeb ? Uri.base.removeFragment().toString() : null,
         );
         if (res.session == null && mounted) {
           setState(() => _error = 'Compte créé. Confirme ton adresse e-mail puis connecte-toi.');
