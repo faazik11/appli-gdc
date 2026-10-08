@@ -1,6 +1,7 @@
 // Démo hors ligne pour les captures d'écran : `flutter build web -t tool/demo_main.dart`
-// puis ouvrir index.html?screen=home|songs|booklets|members|login&theme=dark
+// puis ouvrir index.html?screen=home|songs|agenda|booklets|members|login&theme=dark (&view=...)
 import 'package:appli_gdc/models.dart';
+import 'package:appli_gdc/services/agenda.dart';
 import 'package:appli_gdc/screens/auth_screen.dart';
 import 'package:appli_gdc/screens/home_screen.dart';
 import 'package:appli_gdc/screens/members_screen.dart';
@@ -66,7 +67,7 @@ Future<void> main() async {
   await initializeDateFormatting('fr_FR');
   final q = Uri.base.queryParameters;
   final screen = q['screen'] ?? 'home';
-  final tab = const {'home': 0, 'songs': 1, 'booklets': 2, 'members': 3}[screen] ?? 0;
+  final tab = const {'home': 0, 'songs': 1, 'agenda': 2, 'booklets': 3, 'members': 4}[screen] ?? 0;
   runApp(MaterialApp(
     debugShowCheckedModeBanner: false,
     locale: const Locale('fr', 'FR'),
@@ -98,7 +99,109 @@ Future<void> main() async {
             profile: _profiles.first,
             initialTab: tab,
             load: () async => LibraryData(_categories, _songs, _booklets),
+            agenda: _DemoAgenda(),
             membersPanel: MembersPanel(load: () async => _profiles, setRole: (_, __) async {}),
           ),
   ));
+}
+
+/// Agenda en mémoire pour la démo.
+class _DemoAgenda implements AgendaBackend {
+  static DateTime _d(int days, int h, int m) {
+    final t = DateTime.now();
+    return DateTime(t.year, t.month, t.day + days, h, m);
+  }
+
+  static int _untilWeekday(int wd) => (wd - DateTime.now().weekday) % 7;
+
+  final List<ChoirEvent> _events = [
+    for (var w = 4; w >= 1; w--) ...[
+      ChoirEvent(
+        id: 'pw$w',
+        kind: EventKind.repetition,
+        startsAt: _d(_untilWeekday(DateTime.wednesday) - 7 * w, 20, 0),
+        endsAt: _d(_untilWeekday(DateTime.wednesday) - 7 * w, 22, 0),
+        location: 'Salle des fêtes de Narbonne',
+        participants: [
+          for (final (i, id) in ['p1', 'p2', 'p3', 'p4'].indexed)
+            Participant(profileId: id, response: EventResponse.present, attended: (i + w) % 4 != 0),
+        ],
+      ),
+      ChoirEvent(
+        id: 'ps$w',
+        kind: EventKind.repetition,
+        startsAt: _d(_untilWeekday(DateTime.saturday) - 7 * w, 14, 30),
+        endsAt: _d(_untilWeekday(DateTime.saturday) - 7 * w, 17, 0),
+        location: 'Salle des fêtes de Narbonne',
+        participants: [
+          for (final (i, id) in ['p1', 'p2', 'p3', 'p4'].indexed)
+            Participant(profileId: id, response: EventResponse.present, attended: i != 3 || w.isEven),
+        ],
+      ),
+    ],
+    ChoirEvent(
+      id: 'e1',
+      kind: EventKind.repetition,
+      startsAt: _d(_untilWeekday(DateTime.wednesday), 20, 0),
+      endsAt: _d(_untilWeekday(DateTime.wednesday), 22, 0),
+      location: 'Salle des fêtes de Narbonne',
+      notes: 'On revoit Hymne à l\'amour et Tala al badru.',
+      participants: const [
+        Participant(profileId: 'p1', response: EventResponse.present),
+        Participant(profileId: 'p2', response: EventResponse.present),
+        Participant(profileId: 'p3', response: EventResponse.peutEtre),
+      ],
+    ),
+    ChoirEvent(
+      id: 'e2',
+      kind: EventKind.repetition,
+      startsAt: _d(_untilWeekday(DateTime.saturday), 14, 30),
+      endsAt: _d(_untilWeekday(DateTime.saturday), 17, 0),
+      location: 'Salle des fêtes de Narbonne',
+      participants: const [Participant(profileId: 'p4', response: EventResponse.absent)],
+    ),
+    ChoirEvent(
+      id: 'e3',
+      kind: EventKind.prestation,
+      title: 'Mariage de Sarah et Karim',
+      startsAt: _d(_untilWeekday(DateTime.saturday) + 7, 18, 0),
+      location: 'Domaine de Fontfroide',
+      notes: 'Tenue noire et doré. Rendez-vous 17h15 sur le parking.',
+      participants: const [
+        Participant(profileId: 'p1', response: EventResponse.present),
+        Participant(profileId: 'p2', response: EventResponse.present),
+        Participant(profileId: 'p4', response: EventResponse.present),
+      ],
+    ),
+  ];
+
+  @override
+  Future<List<ChoirEvent>> events() async => [..._events]..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+
+  @override
+  Future<List<Profile>> members() async => _profiles.where((p) => p.isApproved).toList();
+
+  @override
+  Future<void> saveEvent({String? id, required EventKind kind, String? title, required DateTime startsAt, DateTime? endsAt, String? location, String? notes}) async {
+    _events.removeWhere((e) => e.id == id);
+    _events.add(ChoirEvent(id: id ?? 'n${_events.length}', kind: kind, title: title, startsAt: startsAt, endsAt: endsAt, location: location, notes: notes));
+  }
+
+  @override
+  Future<void> deleteEvent(String id) async => _events.removeWhere((e) => e.id == id);
+
+  void _update(String eventId, String profileId, Participant Function(Participant? old) f) {
+    final i = _events.indexWhere((e) => e.id == eventId);
+    final e = _events[i];
+    final parts = [...e.participants.where((p) => p.profileId != profileId), f(e.participantOf(profileId))];
+    _events[i] = ChoirEvent(id: e.id, kind: e.kind, title: e.title, startsAt: e.startsAt, endsAt: e.endsAt, location: e.location, notes: e.notes, participants: parts);
+  }
+
+  @override
+  Future<void> setResponse(String eventId, String profileId, EventResponse response) async =>
+      _update(eventId, profileId, (o) => Participant(profileId: profileId, response: response, attended: o?.attended));
+
+  @override
+  Future<void> setAttended(String eventId, String profileId, bool? attended) async =>
+      _update(eventId, profileId, (o) => Participant(profileId: profileId, response: o?.response, attended: attended));
 }

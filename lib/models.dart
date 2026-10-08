@@ -136,3 +136,85 @@ class Booklet {
         createdAt: m['created_at'] == null ? null : DateTime.parse(m['created_at'] as String),
       );
 }
+
+enum EventKind { repetition, prestation }
+
+enum EventResponse { present, peutEtre, absent }
+
+EventResponse? responseFromDb(String? value) => switch (value) {
+      'present' => EventResponse.present,
+      'peut_etre' => EventResponse.peutEtre,
+      'absent' => EventResponse.absent,
+      _ => null,
+    };
+
+String responseToDb(EventResponse r) => switch (r) {
+      EventResponse.present => 'present',
+      EventResponse.peutEtre => 'peut_etre',
+      EventResponse.absent => 'absent',
+    };
+
+/// Réponse d'un membre à un événement, et sa présence réelle notée par le chef.
+class Participant {
+  final String profileId;
+  final EventResponse? response;
+  final bool? attended;
+
+  const Participant({required this.profileId, this.response, this.attended});
+
+  factory Participant.fromMap(Map<String, dynamic> m) => Participant(
+        profileId: m['profile_id'] as String,
+        response: responseFromDb(m['response'] as String?),
+        attended: m['attended'] as bool?,
+      );
+}
+
+/// Répétition ou prestation de l'agenda.
+class ChoirEvent {
+  final String id;
+  final EventKind kind;
+  final String? title;
+  final DateTime startsAt;
+  final DateTime? endsAt;
+  final String? location;
+  final String? notes;
+  final List<Participant> participants;
+
+  const ChoirEvent({
+    required this.id,
+    required this.kind,
+    required this.startsAt,
+    this.title,
+    this.endsAt,
+    this.location,
+    this.notes,
+    this.participants = const [],
+  });
+
+  bool get isRehearsal => kind == EventKind.repetition;
+  String get displayTitle =>
+      (title?.trim().isNotEmpty ?? false) ? title!.trim() : (isRehearsal ? 'Répétition' : 'Prestation');
+
+  /// Encore à venir tant qu'il n'est pas terminé (3 h par défaut sans heure de fin).
+  bool get isUpcoming => (endsAt ?? startsAt.add(const Duration(hours: 3))).isAfter(DateTime.now());
+
+  /// L'appel a été fait si au moins une présence est notée.
+  bool get rollCallDone => participants.any((p) => p.attended != null);
+
+  Participant? participantOf(String profileId) => participants.where((p) => p.profileId == profileId).firstOrNull;
+  int count(EventResponse r) => participants.where((p) => p.response == r).length;
+  int get attendedCount => participants.where((p) => p.attended == true).length;
+
+  factory ChoirEvent.fromMap(Map<String, dynamic> m) => ChoirEvent(
+        id: m['id'] as String,
+        kind: m['kind'] == 'prestation' ? EventKind.prestation : EventKind.repetition,
+        title: m['title'] as String?,
+        startsAt: DateTime.parse(m['starts_at'] as String).toLocal(),
+        endsAt: m['ends_at'] == null ? null : DateTime.parse(m['ends_at'] as String).toLocal(),
+        location: m['location'] as String?,
+        notes: m['notes'] as String?,
+        participants: ((m['event_participants'] as List?) ?? const [])
+            .map((e) => Participant.fromMap(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+      );
+}

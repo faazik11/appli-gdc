@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
+import '../services/agenda.dart';
 import '../services/repository.dart';
 import '../theme.dart';
 import '../widgets/ui.dart';
+import 'agenda_screen.dart';
 import 'booklet_editor_screen.dart';
 import 'members_screen.dart';
 import 'pdf_view_screen.dart';
@@ -29,12 +31,13 @@ Future<LibraryData> _loadFromSupabase() async {
   return LibraryData(r[0] as List<Category>, r[1] as List<Song>, r[2] as List<Booklet>);
 }
 
-enum _Tab { home, songs, booklets, members }
+enum _Tab { home, songs, agenda, booklets, members }
 
 class HomeScreen extends StatefulWidget {
   final Profile profile;
   final LibraryLoader load;
   final MembersPanel? membersPanel;
+  final AgendaBackend? agenda;
   final int initialTab;
 
   const HomeScreen({
@@ -42,6 +45,7 @@ class HomeScreen extends StatefulWidget {
     required this.profile,
     this.load = _loadFromSupabase,
     this.membersPanel,
+    this.agenda,
     this.initialTab = 0,
   });
 
@@ -51,6 +55,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _repo = Repository.instance;
+  late final AgendaBackend _agenda = widget.agenda ?? SupabaseAgenda();
   LibraryData _data = const LibraryData([], [], []);
   bool _loading = true;
   String? _error;
@@ -86,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _canEdit => widget.profile.isEditor;
   List<Category> get _songCategories => _data.categories.where((c) => !c.isBooklets).toList();
   Category? _categoryOf(Song s) => _data.categories.where((c) => c.id == s.categoryId).firstOrNull;
-  List<_Tab> get _tabs => [_Tab.home, _Tab.songs, _Tab.booklets, if (widget.profile.isAdmin) _Tab.members];
+  List<_Tab> get _tabs => [_Tab.home, _Tab.songs, _Tab.agenda, _Tab.booklets, if (widget.profile.isAdmin) _Tab.members];
 
   // ---------- Navigation vers les autres écrans ----------
 
@@ -186,6 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
             : switch (_tab) {
                 _Tab.home => _homeTab(wide),
                 _Tab.songs => _songsTab(),
+                _Tab.agenda => AgendaPanel(profile: widget.profile, backend: _agenda),
                 _Tab.booklets => _bookletsTab(wide),
                 _Tab.members => widget.membersPanel ?? const MembersPanel(),
               };
@@ -195,6 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
         switch (t) {
           _Tab.home => (Icons.home_outlined, Icons.home_rounded, 'Accueil'),
           _Tab.songs => (Icons.library_music_outlined, Icons.library_music_rounded, 'Chants'),
+          _Tab.agenda => (Icons.event_outlined, Icons.event_rounded, 'Agenda'),
           _Tab.booklets => (Icons.menu_book_outlined, Icons.menu_book_rounded, 'Livrets'),
           _Tab.members => (Icons.groups_outlined, Icons.groups_rounded, 'Membres'),
         },
@@ -283,6 +290,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _hero(),
         ContentWidth(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            NextEventsSection(
+              profile: widget.profile,
+              backend: _agenda,
+              onOpenAgenda: () => setState(() => _tab = _Tab.agenda),
+            ),
             const SectionHeader('Bibliothèque'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
