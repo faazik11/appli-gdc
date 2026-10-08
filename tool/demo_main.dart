@@ -4,6 +4,7 @@ import 'package:appli_gdc/models.dart';
 import 'package:appli_gdc/screens/auth_screen.dart';
 import 'package:appli_gdc/screens/home_screen.dart';
 import 'package:appli_gdc/screens/members_screen.dart';
+import 'package:appli_gdc/screens/song_screen.dart';
 import 'package:appli_gdc/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -76,7 +77,24 @@ Future<void> main() async {
     themeMode: q['theme'] == 'dark' ? ThemeMode.dark : ThemeMode.light,
     home: screen == 'login'
         ? const AuthScreen()
-        : HomeScreen(
+        : screen == 'song'
+            ? SongScreen(
+                song: Song(
+                  id: '1',
+                  title: 'Ave Maria',
+                  categoryId: 1,
+                  lyricsPdfPath: 'sample.pdf',
+                  youtubeUrl: q['yt'] == '1' ? 'https://www.youtube.com/watch?v=2bosouX_d8Y' : null,
+                  audioPath: 'audio.mp3',
+                  tags: const ['Messe'],
+                  notes: 'Attention à l\'entrée des altos à la mesure 12.',
+                ),
+                category: _categories.first,
+                canEdit: true,
+                onEdit: () {},
+                signUrl: (_, path) async => Uri.base.resolve(path).toString(),
+              )
+            : HomeScreen(
             profile: _profiles.first,
             initialTab: tab,
             load: () async => LibraryData(_categories, _songs, _booklets),

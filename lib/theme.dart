@@ -108,7 +108,7 @@ ThemeData buildTheme(Brightness brightness) {
     chipTheme: base.chipTheme.copyWith(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-      labelStyle: const TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500),
+      labelStyle: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500, color: scheme.onSurface),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: AppColors.gold,

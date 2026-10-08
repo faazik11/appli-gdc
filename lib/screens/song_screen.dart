@@ -14,8 +14,16 @@ class SongScreen extends StatefulWidget {
   final Category? category;
   final bool canEdit;
   final VoidCallback onEdit;
+  final Future<String> Function(String bucket, String path)? signUrl;
 
-  const SongScreen({super.key, required this.song, this.category, required this.canEdit, required this.onEdit});
+  const SongScreen({
+    super.key,
+    required this.song,
+    this.category,
+    required this.canEdit,
+    required this.onEdit,
+    this.signUrl,
+  });
 
   @override
   State<SongScreen> createState() => _SongScreenState();
@@ -30,6 +38,12 @@ class _SongScreenState extends State<SongScreen> {
   Future<String>? _pdfUrl;
   _Source? _source;
   bool _mediaVisible = true;
+  // Mode « paroles seules » : choisi à la main, ou automatique en paysage sur téléphone.
+  bool _focusRequested = false;
+  bool _showControlsInLandscape = false;
+
+  Future<String> _sign(String bucket, String path) =>
+      (widget.signUrl ?? _repo.signedUrl)(bucket, path);
 
   @override
   void initState() {
@@ -45,11 +59,11 @@ class _SongScreenState extends State<SongScreen> {
       _source = _Source.youtube;
     }
     if (song.audioPath != null) {
-      _audioUrl = _repo.signedUrl(Repository.audioBucket, song.audioPath!);
+      _audioUrl = _sign(Repository.audioBucket, song.audioPath!);
       _source ??= _Source.audio;
     }
     if (song.lyricsPdfPath != null) {
-      _pdfUrl = _repo.signedUrl(Repository.lyricsBucket, song.lyricsPdfPath!);
+      _pdfUrl = _sign(Repository.lyricsBucket, song.lyricsPdfPath!);
     }
   }
 
@@ -64,7 +78,10 @@ class _SongScreenState extends State<SongScreen> {
     final song = widget.song;
     final theme = Theme.of(context);
     final style = CategoryStyle.of(widget.category?.name ?? '');
-    final wide = MediaQuery.sizeOf(context).width >= 1000;
+    final size = MediaQuery.sizeOf(context);
+    final wide = size.width >= 1000 && size.height >= 600;
+    final phoneLandscape = size.width > size.height && size.height < 500;
+    final focus = _focusRequested || (phoneLandscape && !_showControlsInLandscape);
 
     final header = Container(
       decoration: BoxDecoration(gradient: style.gradient),
@@ -89,6 +106,15 @@ class _SongScreenState extends State<SongScreen> {
                     tooltip: _mediaVisible ? 'Masquer le lecteur' : 'Afficher le lecteur',
                     icon: Icon(_mediaVisible ? Icons.expand_less_rounded : Icons.expand_more_rounded),
                     onPressed: () => setState(() => _mediaVisible = !_mediaVisible),
+                  ),
+                if (_pdfUrl != null)
+                  IconButton(
+                    tooltip: 'Paroles en plein écran',
+                    icon: const Icon(Icons.fullscreen_rounded),
+                    onPressed: () => setState(() {
+                      _focusRequested = true;
+                      _showControlsInLandscape = false;
+                    }),
                   ),
                 if (widget.canEdit)
                   IconButton(
@@ -182,6 +208,8 @@ class _SongScreenState extends State<SongScreen> {
 
     final lyrics = Card(
       clipBehavior: Clip.antiAlias,
+      shape: focus ? const RoundedRectangleBorder() : null,
+      margin: EdgeInsets.zero,
       child: _pdfUrl == null
           ? const Center(
               child: Padding(
@@ -196,32 +224,62 @@ class _SongScreenState extends State<SongScreen> {
             ),
     );
 
+    // En plein écran, le lecteur reste monté (caché) pour que la musique continue.
+    final content = wide && _source != null && !focus
+        ? Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(flex: 5, child: SingleChildScrollView(child: media)),
+              const SizedBox(width: 20),
+              Expanded(flex: 6, child: lyrics),
+            ]),
+          )
+        : Padding(
+            padding: focus ? EdgeInsets.zero : const EdgeInsets.all(14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (_source != null || song.notes != null)
+                Offstage(
+                  offstage: !_mediaVisible || focus,
+                  child: Padding(padding: const EdgeInsets.only(bottom: 14), child: media),
+                ),
+              Expanded(child: lyrics),
+            ]),
+          );
+
     return Scaffold(
       body: Column(children: [
-        header,
+        if (!focus) header,
         Expanded(
-          child: wide && _source != null
-              ? Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Expanded(flex: 5, child: SingleChildScrollView(child: media)),
-                    const SizedBox(width: 20),
-                    Expanded(flex: 6, child: lyrics),
-                  ]),
-                )
-              : Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    if (_source != null || song.notes != null)
-                      Offstage(
-                        offstage: !_mediaVisible,
-                        child: Padding(padding: const EdgeInsets.only(bottom: 14), child: media),
-                      ),
-                    Expanded(child: lyrics),
+          child: Stack(children: [
+            Positioned.fill(child: focus ? SafeArea(child: content) : content),
+            if (focus)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: SafeArea(
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    _focusButton(Icons.arrow_back_rounded, 'Retour', () => Navigator.pop(context)),
+                    const SizedBox(width: 8),
+                    _focusButton(Icons.fullscreen_exit_rounded, 'Afficher le lecteur', () => setState(() {
+                          _focusRequested = false;
+                          _showControlsInLandscape = true;
+                        })),
                   ]),
                 ),
+              ),
+          ]),
         ),
       ]),
     );
   }
+
+  Widget _focusButton(IconData icon, String tooltip, VoidCallback onPressed) => Material(
+        color: AppColors.aubergine.withValues(alpha: 0.75),
+        shape: const CircleBorder(),
+        child: IconButton(
+          tooltip: tooltip,
+          icon: Icon(icon, color: Colors.white),
+          onPressed: onPressed,
+        ),
+      );
 }

@@ -400,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const AppLogo(size: 40),
                 const SizedBox(width: 12),
                 const Expanded(
-                  child: Text('Groupe GDC',
+                  child: Text('Groupe de Chant Narbonne',
                       style: TextStyle(fontFamily: 'Poppins', color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16, letterSpacing: 0.5)),
                 ),
                 PopupMenuButton<String>(
@@ -581,7 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
         labelStyle: TextStyle(
           fontFamily: 'Poppins',
           fontWeight: FontWeight.w500,
-          color: selected ? Colors.white : null,
+          color: selected ? Colors.white : Theme.of(context).colorScheme.onSurface,
         ),
         onSelected: (_) => setState(() => _categoryFilter = id),
       ),
