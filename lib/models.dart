@@ -169,6 +169,25 @@ class Participant {
       );
 }
 
+/// Totaux d'un événement, visibles de tous (sans les noms).
+class EventSummary {
+  final int present;
+  final int peutEtre;
+  final int absent;
+  final int attended;
+  final bool rollCallDone;
+
+  const EventSummary({this.present = 0, this.peutEtre = 0, this.absent = 0, this.attended = 0, this.rollCallDone = false});
+
+  factory EventSummary.fromMap(Map<String, dynamic> m) => EventSummary(
+        present: m['present'] as int? ?? 0,
+        peutEtre: m['peut_etre'] as int? ?? 0,
+        absent: m['absent'] as int? ?? 0,
+        attended: m['attended'] as int? ?? 0,
+        rollCallDone: m['roll_call_done'] as bool? ?? false,
+      );
+}
+
 /// Répétition ou prestation de l'agenda.
 class ChoirEvent {
   final String id;
@@ -180,6 +199,9 @@ class ChoirEvent {
   final String? notes;
   final List<Participant> participants;
 
+  /// Totaux calculés côté serveur ; un simple membre ne reçoit que sa propre ligne de participants.
+  final EventSummary? summary;
+
   const ChoirEvent({
     required this.id,
     required this.kind,
@@ -189,7 +211,20 @@ class ChoirEvent {
     this.location,
     this.notes,
     this.participants = const [],
+    this.summary,
   });
+
+  ChoirEvent withSummary(EventSummary? s) => ChoirEvent(
+        id: id,
+        kind: kind,
+        title: title,
+        startsAt: startsAt,
+        endsAt: endsAt,
+        location: location,
+        notes: notes,
+        participants: participants,
+        summary: s,
+      );
 
   bool get isRehearsal => kind == EventKind.repetition;
   String get displayTitle =>
@@ -199,11 +234,18 @@ class ChoirEvent {
   bool get isUpcoming => (endsAt ?? startsAt.add(const Duration(hours: 3))).isAfter(DateTime.now());
 
   /// L'appel a été fait si au moins une présence est notée.
-  bool get rollCallDone => participants.any((p) => p.attended != null);
+  bool get rollCallDone => summary?.rollCallDone ?? participants.any((p) => p.attended != null);
 
   Participant? participantOf(String profileId) => participants.where((p) => p.profileId == profileId).firstOrNull;
-  int count(EventResponse r) => participants.where((p) => p.response == r).length;
-  int get attendedCount => participants.where((p) => p.attended == true).length;
+  int count(EventResponse r) =>
+      summary == null
+          ? participants.where((p) => p.response == r).length
+          : switch (r) {
+              EventResponse.present => summary!.present,
+              EventResponse.peutEtre => summary!.peutEtre,
+              EventResponse.absent => summary!.absent,
+            };
+  int get attendedCount => summary?.attended ?? participants.where((p) => p.attended == true).length;
 
   factory ChoirEvent.fromMap(Map<String, dynamic> m) => ChoirEvent(
         id: m['id'] as String,

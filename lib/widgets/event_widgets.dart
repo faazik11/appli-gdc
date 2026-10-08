@@ -149,8 +149,9 @@ class ResponseButtons extends StatelessWidget {
 /// Résumé des réponses : 12 présents · 2 peut-être · 1 absent.
 class ResponseCounts extends StatelessWidget {
   final ChoirEvent event;
+  final bool labels;
 
-  const ResponseCounts(this.event, {super.key});
+  const ResponseCounts(this.event, {super.key, this.labels = false});
 
   @override
   Widget build(BuildContext context) {
@@ -165,9 +166,9 @@ class ResponseCounts extends StatelessWidget {
       if (done)
         item(Icons.how_to_reg_rounded, const Color(0xFF2E9E6A), '${event.attendedCount} présents à l\'appel')
       else ...[
-        item(Icons.check_circle_rounded, const Color(0xFF2E9E6A), '${event.count(EventResponse.present)}'),
-        item(Icons.help_rounded, const Color(0xFFD08A1E), '${event.count(EventResponse.peutEtre)}'),
-        item(Icons.cancel_rounded, const Color(0xFFC6464B), '${event.count(EventResponse.absent)}'),
+        item(Icons.check_circle_rounded, const Color(0xFF2E9E6A), '${event.count(EventResponse.present)}${labels ? ' présent(s)' : ''}'),
+        item(Icons.help_rounded, const Color(0xFFD08A1E), '${event.count(EventResponse.peutEtre)}${labels ? ' peut-être' : ''}'),
+        item(Icons.cancel_rounded, const Color(0xFFC6464B), '${event.count(EventResponse.absent)}${labels ? ' absent(s)' : ''}'),
       ],
     ]);
   }

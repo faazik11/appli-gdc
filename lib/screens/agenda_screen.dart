@@ -5,6 +5,7 @@ import '../services/agenda.dart';
 import '../theme.dart';
 import '../widgets/event_widgets.dart';
 import '../widgets/ui.dart';
+import 'attendance_screen.dart';
 import 'event_form_screen.dart';
 import 'event_screen.dart';
 
@@ -54,7 +55,6 @@ class _AgendaPanelState extends State<AgendaPanel> {
   AgendaData? _data;
   String? _error;
   _View _view = _View.upcoming;
-  EventKind _statsKind = EventKind.repetition;
 
   bool get _canEdit => widget.profile.isEditor;
 
@@ -163,7 +163,7 @@ class _AgendaPanelState extends State<AgendaPanel> {
                   segments: [
                     const ButtonSegment(value: _View.upcoming, label: Text('À venir')),
                     const ButtonSegment(value: _View.past, label: Text('Passés')),
-                    if (_canEdit) const ButtonSegment(value: _View.attendance, label: Text('Présences')),
+                    ButtonSegment(value: _View.attendance, label: Text(_canEdit ? 'Présences' : 'Mon suivi')),
                   ],
                   selected: {_view},
                   onSelectionChanged: (s) => setState(() => _view = s.first),
@@ -173,7 +173,11 @@ class _AgendaPanelState extends State<AgendaPanel> {
               ...switch (_view) {
                 _View.upcoming => _eventList(data, data.upcoming, upcoming: true),
                 _View.past => _eventList(data, data.past, upcoming: false),
-                _View.attendance => _attendance(data, theme),
+                _View.attendance => [
+                  _canEdit
+                      ? AttendanceOverview([for (final m in data.members) MemberStats.compute(m, data.events)])
+                      : MemberStatsView(MemberStats.compute(widget.profile, data.events)),
+                ],
               },
             ]),
           ),
@@ -229,102 +233,7 @@ class _AgendaPanelState extends State<AgendaPanel> {
         ),
     ];
   }
-
-  List<Widget> _attendance(AgendaData data, ThemeData theme) {
-    final done = data.past.where((e) => e.kind == _statsKind && e.rollCallDone).toList();
-    final rows = [
-      for (final m in data.members)
-        (m, done.where((e) => e.participantOf(m.id)?.attended == true).length),
-    ]..sort((a, b) => b.$2.compareTo(a.$2));
-    final average = rows.isEmpty || done.isEmpty
-        ? 0.0
-        : rows.fold<int>(0, (n, r) => n + r.$2) / (rows.length * done.length);
-    final notDone = data.past.where((e) => e.kind == _statsKind && !e.rollCallDone).length;
-    return [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Wrap(spacing: 8, children: [
-          for (final k in EventKind.values)
-            ChoiceChip(
-              label: Text(k == EventKind.repetition ? 'Répétitions' : 'Prestations'),
-              selected: _statsKind == k,
-              onSelected: (_) => setState(() => _statsKind = k),
-            ),
-        ]),
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-        child: Card(
-          color: AppColors.aubergine,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${(average * 100).round()} %',
-                      style: const TextStyle(fontFamily: 'DMSerifDisplay', fontSize: 34, color: AppColors.goldLight)),
-                  Text('de présence en moyenne sur ${done.length} ${_statsKind == EventKind.repetition ? 'répétition(s)' : 'prestation(s)'}',
-                      style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.white)),
-                ]),
-              ),
-              const Icon(Icons.insights_rounded, color: AppColors.goldLight, size: 40),
-            ]),
-          ),
-        ),
-      ),
-      if (notDone > 0)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 6),
-          child: Text('$notDone événement(s) passé(s) sans appel : ouvre-les dans « Passés » pour noter les présents.',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        ),
-      if (done.isEmpty)
-        const EmptyState(
-          icon: Icons.how_to_reg_rounded,
-          title: 'Pas encore d\'appel',
-          message: 'Après une répétition, ouvre-la et utilise « Faire l\'appel ». Les statistiques apparaîtront ici.',
-        )
-      else
-        for (final (m, n) in rows)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 16, 12),
-                child: Row(children: [
-                  Avatar(m.fullName),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Expanded(child: Text(m.fullName.isEmpty ? 'Sans nom' : m.fullName, style: theme.textTheme.titleSmall)),
-                        Text('$n / ${done.length}', style: theme.textTheme.labelLarge),
-                      ]),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: n / done.length,
-                          minHeight: 7,
-                          color: _rateColor(n / done.length),
-                          backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        ),
-                      ),
-                    ]),
-                  ),
-                ]),
-              ),
-            ),
-          ),
-    ];
-  }
 }
-
-Color _rateColor(double r) => r >= 0.75
-    ? const Color(0xFF2E9E6A)
-    : r >= 0.5
-        ? const Color(0xFFD08A1E)
-        : const Color(0xFFC6464B);
 
 /// Carte d'accueil : la prochaine répétition (et la prochaine prestation) avec réponse rapide.
 class NextEventsSection extends StatefulWidget {

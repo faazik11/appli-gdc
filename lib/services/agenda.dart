@@ -27,8 +27,17 @@ class SupabaseAgenda implements AgendaBackend {
 
   @override
   Future<List<ChoirEvent>> events() async {
-    final rows = await _db.from('events').select('*, event_participants(*)').order('starts_at');
-    return rows.map(ChoirEvent.fromMap).toList();
+    final r = await Future.wait<dynamic>([
+      _db.from('events').select('*, event_participants(*)').order('starts_at').then((v) => v),
+      _db.rpc('event_counts').then((v) => v),
+    ]);
+    final summaries = {
+      for (final c in (r[1] as List).cast<Map<String, dynamic>>()) c['event_id'] as String: EventSummary.fromMap(c),
+    };
+    return (r[0] as List)
+        .cast<Map<String, dynamic>>()
+        .map((m) => ChoirEvent.fromMap(m).withSummary(summaries[m['id']] ?? const EventSummary()))
+        .toList();
   }
 
   @override

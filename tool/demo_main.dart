@@ -96,10 +96,10 @@ Future<void> main() async {
                 signUrl: (_, path) async => Uri.base.resolve(path).toString(),
               )
             : HomeScreen(
-            profile: _profiles.first,
+            profile: q['as'] == 'membre' ? _profiles[2] : _profiles.first,
             initialTab: tab,
             load: () async => LibraryData(_categories, _songs, _booklets),
-            agenda: _DemoAgenda(),
+            agenda: _DemoAgenda(q['as'] == 'membre' ? 'p3' : null),
             membersPanel: MembersPanel(load: () async => _profiles, setRole: (_, __) async {}),
           ),
   ));
@@ -107,6 +107,11 @@ Future<void> main() async {
 
 /// Agenda en mémoire pour la démo.
 class _DemoAgenda implements AgendaBackend {
+  /// Membre simple connecté : il ne reçoit que sa propre ligne, comme avec la vraie base.
+  final String? memberId;
+
+  _DemoAgenda(this.memberId);
+
   static DateTime _d(int days, int h, int m) {
     final t = DateTime.now();
     return DateTime(t.year, t.month, t.day + days, h, m);
@@ -139,6 +144,19 @@ class _DemoAgenda implements AgendaBackend {
         ],
       ),
     ],
+    ChoirEvent(
+      id: 'pp1',
+      kind: EventKind.prestation,
+      title: 'Concert de la Saint-Michel',
+      startsAt: _d(-12, 19, 0),
+      location: 'Cathédrale Saint-Just',
+      participants: const [
+        Participant(profileId: 'p1', response: EventResponse.present, attended: true),
+        Participant(profileId: 'p2', response: EventResponse.present, attended: true),
+        Participant(profileId: 'p3', response: EventResponse.present, attended: true),
+        Participant(profileId: 'p4', response: EventResponse.absent, attended: false),
+      ],
+    ),
     ChoirEvent(
       id: 'e1',
       kind: EventKind.repetition,
@@ -176,7 +194,26 @@ class _DemoAgenda implements AgendaBackend {
   ];
 
   @override
-  Future<List<ChoirEvent>> events() async => [..._events]..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+  Future<List<ChoirEvent>> events() async => [
+        for (final e in _events)
+          ChoirEvent(
+            id: e.id,
+            kind: e.kind,
+            title: e.title,
+            startsAt: e.startsAt,
+            endsAt: e.endsAt,
+            location: e.location,
+            notes: e.notes,
+            participants: memberId == null ? e.participants : e.participants.where((p) => p.profileId == memberId).toList(),
+            summary: EventSummary(
+              present: e.count(EventResponse.present),
+              peutEtre: e.count(EventResponse.peutEtre),
+              absent: e.count(EventResponse.absent),
+              attended: e.attendedCount,
+              rollCallDone: e.rollCallDone,
+            ),
+          ),
+      ]..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
   @override
   Future<List<Profile>> members() async => _profiles.where((p) => p.isApproved).toList();
