@@ -5,15 +5,17 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../models.dart';
 import '../services/repository.dart';
+import '../theme.dart';
 import '../widgets/audio_player_bar.dart';
 
 /// Écran de répétition : vidéo YouTube ou audio en haut, paroles en dessous.
 class SongScreen extends StatefulWidget {
   final Song song;
+  final Category? category;
   final bool canEdit;
   final VoidCallback onEdit;
 
-  const SongScreen({super.key, required this.song, required this.canEdit, required this.onEdit});
+  const SongScreen({super.key, required this.song, this.category, required this.canEdit, required this.onEdit});
 
   @override
   State<SongScreen> createState() => _SongScreenState();
@@ -60,90 +62,166 @@ class _SongScreenState extends State<SongScreen> {
   @override
   Widget build(BuildContext context) {
     final song = widget.song;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(song.title),
-        actions: [
-          if (song.youtubeUrl != null)
-            IconButton(
-              tooltip: 'Ouvrir dans YouTube',
-              icon: const Icon(Icons.open_in_new),
-              onPressed: () => launchUrl(Uri.parse(song.youtubeUrl!),
-                  mode: LaunchMode.externalApplication),
+    final theme = Theme.of(context);
+    final style = CategoryStyle.of(widget.category?.name ?? '');
+    final wide = MediaQuery.sizeOf(context).width >= 1000;
+
+    final header = Container(
+      decoration: BoxDecoration(gradient: style.gradient),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            IconTheme(
+              data: const IconThemeData(color: Colors.white),
+              child: Row(children: [
+                const BackButton(color: Colors.white),
+                const Spacer(),
+                if (song.youtubeUrl != null)
+                  IconButton(
+                    tooltip: 'Ouvrir dans YouTube',
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    onPressed: () => launchUrl(Uri.parse(song.youtubeUrl!), mode: LaunchMode.externalApplication),
+                  ),
+                if (_source != null && !wide)
+                  IconButton(
+                    tooltip: _mediaVisible ? 'Masquer le lecteur' : 'Afficher le lecteur',
+                    icon: Icon(_mediaVisible ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+                    onPressed: () => setState(() => _mediaVisible = !_mediaVisible),
+                  ),
+                if (widget.canEdit)
+                  IconButton(
+                    tooltip: 'Modifier',
+                    icon: const Icon(Icons.edit_rounded),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onEdit();
+                    },
+                  ),
+              ]),
             ),
-          if (_source != null)
-            IconButton(
-              tooltip: _mediaVisible ? 'Masquer le lecteur' : 'Afficher le lecteur',
-              icon: Icon(_mediaVisible ? Icons.expand_less : Icons.expand_more),
-              onPressed: () => setState(() => _mediaVisible = !_mediaVisible),
-            ),
-          if (widget.canEdit)
-            IconButton(
-              tooltip: 'Modifier',
-              icon: const Icon(Icons.edit),
-              onPressed: () {
-                Navigator.pop(context);
-                widget.onEdit();
-              },
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (_youtube != null && _audioUrl != null)
             Padding(
-              padding: const EdgeInsets.all(8),
-              child: SegmentedButton<_Source>(
-                segments: const [
-                  ButtonSegment(value: _Source.youtube, label: Text('YouTube'), icon: Icon(Icons.smart_display)),
-                  ButtonSegment(value: _Source.audio, label: Text('Audio'), icon: Icon(Icons.audiotrack)),
-                ],
-                selected: {_source!},
-                onSelectionChanged: (s) {
-                  if (s.first == _Source.audio) _youtube?.pauseVideo();
-                  setState(() => _source = s.first);
-                },
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+              child: Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
+                  child: Icon(style.icon, color: Colors.white),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(song.title,
+                        style: const TextStyle(fontFamily: 'DMSerifDisplay', fontFamilyFallback: ['Amiri'], color: Colors.white, fontSize: 26, height: 1.15)),
+                    if (widget.category != null || song.tags.isNotEmpty)
+                      Text([if (widget.category != null) widget.category!.name, ...song.tags].join(' · '),
+                          style: TextStyle(fontFamily: 'Poppins', color: Colors.white.withValues(alpha: 0.85), fontSize: 13)),
+                  ]),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+
+    final media = Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (_youtube != null && _audioUrl != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: SegmentedButton<_Source>(
+            segments: const [
+              ButtonSegment(value: _Source.youtube, label: Text('Vidéo'), icon: Icon(Icons.smart_display_rounded)),
+              ButtonSegment(value: _Source.audio, label: Text('Audio'), icon: Icon(Icons.headphones_rounded)),
+            ],
+            selected: {_source!},
+            onSelectionChanged: (s) {
+              if (s.first == _Source.audio) _youtube?.pauseVideo();
+              setState(() => _source = s.first);
+            },
+          ),
+        ),
+      // Le lecteur reste monté quand il est masqué, pour que le son continue.
+      if (_youtube != null)
+        Offstage(
+          offstage: _source != _Source.youtube,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: wide ? 420 : 260),
+              child: YoutubePlayer(controller: _youtube!),
+            ),
+          ),
+        ),
+      if (_audioUrl != null && _source == _Source.audio)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: FutureBuilder<String>(
+              future: _audioUrl,
+              builder: (context, snap) => snap.hasData ? AudioPlayerBar(url: snap.data!) : const LinearProgressIndicator(),
+            ),
+          ),
+        ),
+      if (song.notes != null)
+        Container(
+          margin: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.gold.withValues(alpha: 0.13),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.sticky_note_2_rounded, size: 18, color: theme.colorScheme.tertiary),
+            const SizedBox(width: 10),
+            Expanded(child: Text(song.notes!, style: theme.textTheme.bodyMedium)),
+          ]),
+        ),
+    ]);
+
+    final lyrics = Card(
+      clipBehavior: Clip.antiAlias,
+      child: _pdfUrl == null
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Pas encore de PDF de paroles pour ce chant.', textAlign: TextAlign.center),
               ),
+            )
+          : FutureBuilder<String>(
+              future: _pdfUrl,
+              builder: (context, snap) =>
+                  snap.hasData ? SfPdfViewer.network(snap.data!) : const Center(child: CircularProgressIndicator()),
             ),
-          // Le lecteur reste monté quand il est masqué, pour que le son continue.
-          Offstage(
-            offstage: !_mediaVisible,
-            child: Column(children: [
-              if (_youtube != null)
-                Offstage(
-                  offstage: _source != _Source.youtube,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 280),
-                    child: YoutubePlayer(controller: _youtube!),
-                  ),
+    );
+
+    return Scaffold(
+      body: Column(children: [
+        header,
+        Expanded(
+          child: wide && _source != null
+              ? Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(flex: 5, child: SingleChildScrollView(child: media)),
+                    const SizedBox(width: 20),
+                    Expanded(flex: 6, child: lyrics),
+                  ]),
+                )
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    if (_source != null || song.notes != null)
+                      Offstage(
+                        offstage: !_mediaVisible,
+                        child: Padding(padding: const EdgeInsets.only(bottom: 14), child: media),
+                      ),
+                    Expanded(child: lyrics),
+                  ]),
                 ),
-              if (_audioUrl != null && _source == _Source.audio)
-                FutureBuilder<String>(
-                  future: _audioUrl,
-                  builder: (context, snap) => snap.hasData
-                      ? AudioPlayerBar(url: snap.data!)
-                      : const LinearProgressIndicator(),
-                ),
-            ]),
-          ),
-          if (song.notes != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(song.notes!, style: Theme.of(context).textTheme.bodySmall),
-            ),
-          const Divider(height: 16),
-          Expanded(
-            child: _pdfUrl == null
-                ? const Center(child: Text('Pas encore de PDF de paroles pour ce chant.'))
-                : FutureBuilder<String>(
-                    future: _pdfUrl,
-                    builder: (context, snap) => snap.hasData
-                        ? SfPdfViewer.network(snap.data!)
-                        : const Center(child: CircularProgressIndicator()),
-                  ),
-          ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }

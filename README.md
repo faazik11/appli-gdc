@@ -41,6 +41,6 @@ flutter test   # génère build/test_booklet.pdf à partir de test/fixtures
 
 ## Licences
 
-- Police Amiri : SIL Open Font License (`assets/fonts/OFL.txt`).
+- Polices Amiri, Poppins et DM Serif Display : SIL Open Font License (`assets/fonts/OFL-*.txt`).
 - Syncfusion (PDF et lecteur PDF) : licence communautaire gratuite pour les
   associations et petites structures.

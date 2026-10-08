@@ -60,6 +60,7 @@ class Song {
   final String? audioPath;
   final List<String> tags;
   final String? notes;
+  final DateTime? createdAt;
 
   const Song({
     required this.id,
@@ -70,7 +71,12 @@ class Song {
     this.audioPath,
     this.tags = const [],
     this.notes,
+    this.createdAt,
   });
+
+  bool get hasPdf => lyricsPdfPath != null;
+  bool get hasYoutube => youtubeUrl != null;
+  bool get hasAudio => audioPath != null;
 
   factory Song.fromMap(Map<String, dynamic> m) => Song(
         id: m['id'] as String,
@@ -81,6 +87,7 @@ class Song {
         audioPath: m['audio_path'] as String?,
         tags: (m['tags'] as List?)?.cast<String>() ?? const [],
         notes: m['notes'] as String?,
+        createdAt: m['created_at'] == null ? null : DateTime.parse(m['created_at'] as String),
       );
 }
 
@@ -105,6 +112,7 @@ class Booklet {
   final DateTime? eventDate;
   final List<BookletPart> parts;
   final String? pdfPath;
+  final DateTime? createdAt;
 
   const Booklet({
     required this.id,
@@ -112,7 +120,10 @@ class Booklet {
     this.eventDate,
     this.parts = const [],
     this.pdfPath,
+    this.createdAt,
   });
+
+  int get songCount => parts.fold(0, (n, p) => n + p.songIds.length);
 
   factory Booklet.fromMap(Map<String, dynamic> m) => Booklet(
         id: m['id'] as String,
@@ -122,5 +133,6 @@ class Booklet {
             .map((e) => BookletPart.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList(),
         pdfPath: m['pdf_path'] as String?,
+        createdAt: m['created_at'] == null ? null : DateTime.parse(m['created_at'] as String),
       );
 }
