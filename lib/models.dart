@@ -214,7 +214,7 @@ class ChoirEvent {
     this.summary,
   });
 
-  ChoirEvent withSummary(EventSummary? s) => ChoirEvent(
+  ChoirEvent withSummary(EventSummary? s, {List<Participant>? participants}) => ChoirEvent(
         id: id,
         kind: kind,
         title: title,
@@ -222,7 +222,7 @@ class ChoirEvent {
         endsAt: endsAt,
         location: location,
         notes: notes,
-        participants: participants,
+        participants: participants ?? this.participants,
         summary: s,
       );
 

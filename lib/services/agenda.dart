@@ -30,13 +30,29 @@ class SupabaseAgenda implements AgendaBackend {
     final r = await Future.wait<dynamic>([
       _db.from('events').select('*, event_participants(*)').order('starts_at').then((v) => v),
       _db.rpc('event_counts').then((v) => v),
+      _db.rpc('event_responses').then((v) => v),
     ]);
+    // Un simple membre ne lit que sa ligne : on complète avec les réponses des autres (sans l'appel).
+    final responses = <String, List<Participant>>{};
+    for (final row in (r[2] as List).cast<Map<String, dynamic>>()) {
+      responses.putIfAbsent(row['event_id'] as String, () => []).add(Participant.fromMap(row));
+    }
     final summaries = {
       for (final c in (r[1] as List).cast<Map<String, dynamic>>()) c['event_id'] as String: EventSummary.fromMap(c),
     };
     return (r[0] as List)
         .cast<Map<String, dynamic>>()
-        .map((m) => ChoirEvent.fromMap(m).withSummary(summaries[m['id']] ?? const EventSummary()))
+        .map((m) {
+          final e = ChoirEvent.fromMap(m);
+          final known = e.participants.map((p) => p.profileId).toSet();
+          return e.withSummary(
+            summaries[e.id] ?? const EventSummary(),
+            participants: [
+              ...e.participants,
+              ...?responses[e.id]?.where((p) => !known.contains(p.profileId)),
+            ],
+          );
+        })
         .toList();
   }
 

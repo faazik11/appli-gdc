@@ -204,7 +204,12 @@ class _DemoAgenda implements AgendaBackend {
             endsAt: e.endsAt,
             location: e.location,
             notes: e.notes,
-            participants: memberId == null ? e.participants : e.participants.where((p) => p.profileId == memberId).toList(),
+            participants: memberId == null
+                ? e.participants
+                : [
+                    for (final p in e.participants)
+                      p.profileId == memberId ? p : Participant(profileId: p.profileId, response: p.response),
+                  ],
             summary: EventSummary(
               present: e.count(EventResponse.present),
               peutEtre: e.count(EventResponse.peutEtre),

@@ -182,21 +182,7 @@ class _EventScreenState extends State<EventScreen> {
                       onSelectionChanged: (s) => setState(() => _rollCall = s.first),
                     ),
                   ],
-                  if (!_canEdit)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20),
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(_event.isUpcoming ? 'Qui vient ?' : 'Bilan', style: theme.textTheme.titleSmall),
-                            const SizedBox(height: 8),
-                            ResponseCounts(_event, labels: true),
-                          ]),
-                        ),
-                      ),
-                    )
-                  else if (_rollCall)
+                  if (_canEdit && _rollCall)
                     ..._rollCallList(theme)
                   else
                     ..._responseList(theme),
