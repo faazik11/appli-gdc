@@ -1,12 +1,11 @@
 {
-    "name": "Appli GDC",
+    "name": "Groupe de Chant Narbonne",
     "short_name": "GDC",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Appli de la chorale GDC : chants, écoute et livrets.",
-    "orientation": "portrait-primary",
+    "background_color": "#2E1A47",
+    "theme_color": "#2E1A47",
+    "description": "L'appli du Groupe de Chant Narbonne : chants, agenda, livrets.",
     "prefer_related_applications": false,
     "icons": [
         {

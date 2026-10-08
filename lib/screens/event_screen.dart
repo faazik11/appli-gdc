@@ -5,6 +5,7 @@ import '../models.dart';
 import '../services/agenda.dart';
 import '../theme.dart';
 import '../widgets/event_widgets.dart';
+import '../widgets/library_links.dart';
 import '../widgets/ui.dart';
 import 'event_form_screen.dart';
 
@@ -15,6 +16,7 @@ class EventScreen extends StatefulWidget {
   final Profile profile;
   final List<Profile> members;
   final List<String> locations;
+  final LibraryLinks? links;
 
   const EventScreen({
     super.key,
@@ -23,6 +25,7 @@ class EventScreen extends StatefulWidget {
     required this.profile,
     required this.members,
     this.locations = const [],
+    this.links,
   });
 
   @override
@@ -59,7 +62,8 @@ class _EventScreenState extends State<EventScreen> {
 
   Future<void> _edit() async {
     final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => EventFormScreen(backend: widget.backend, kind: _event.kind, event: _event, locations: widget.locations),
+      builder: (_) => EventFormScreen(
+          backend: widget.backend, kind: _event.kind, event: _event, locations: widget.locations, links: widget.links),
     ));
     if (saved == true) {
       _changed = true;
@@ -162,6 +166,7 @@ class _EventScreenState extends State<EventScreen> {
                     Card(
                       child: ListTile(leading: const Icon(Icons.notes_rounded), title: Text(_event.notes!)),
                     ),
+                  ..._librarySection(theme),
                   if (_event.isUpcoming) ...[
                     const SizedBox(height: 12),
                     Text('Tu viens ?', style: theme.textTheme.titleMedium),
@@ -193,6 +198,58 @@ class _EventScreenState extends State<EventScreen> {
         ]),
       ),
     );
+  }
+
+  List<Widget> _librarySection(ThemeData theme) {
+    final links = widget.links;
+    if (links == null) return const [];
+    final booklet = links.booklet(_event.bookletId);
+    final songs = links.songsOf(_event);
+    if (booklet == null && songs.isEmpty) return const [];
+    return [
+      const SizedBox(height: 12),
+      Text(_event.isRehearsal ? 'À travailler' : 'Programme', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      if (booklet != null)
+        Card(
+          color: AppColors.aubergine,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+            child: Row(children: [
+              const Icon(Icons.menu_book_rounded, color: AppColors.goldLight),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(booklet.title,
+                    style: const TextStyle(fontFamily: 'Poppins', color: Colors.white, fontWeight: FontWeight.w600)),
+              ),
+              if (booklet.pdfPath != null) ...[
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: Colors.white),
+                  onPressed: () => links.openBooklet(booklet),
+                  child: const Text('Ouvrir'),
+                ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.gold, foregroundColor: AppColors.aubergine),
+                  icon: const Icon(Icons.fullscreen_rounded),
+                  label: const Text('Concert'),
+                  onPressed: () => links.openConcert(booklet),
+                ),
+              ],
+            ]),
+          ),
+        ),
+      for (final (i, s) in songs.indexed)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(children: [
+            SizedBox(
+              width: 28,
+              child: Text('${i + 1}', style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.tertiary)),
+            ),
+            Expanded(child: SongCard(song: s, category: links.categoryOf(s), onTap: () => links.openSong(s))),
+          ]),
+        ),
+    ];
   }
 
   String _name(String id) =>

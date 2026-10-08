@@ -4,6 +4,7 @@ import '../models.dart';
 import '../services/agenda.dart';
 import '../theme.dart';
 import '../widgets/event_widgets.dart';
+import '../widgets/library_links.dart';
 import '../widgets/ui.dart';
 import 'attendance_screen.dart';
 import 'event_form_screen.dart';
@@ -25,9 +26,11 @@ class AgendaData {
 }
 
 /// Ouvre le détail d'un événement ; renvoie true si quelque chose a changé.
-Future<bool> openEvent(BuildContext context, AgendaBackend backend, Profile profile, ChoirEvent e, AgendaData data) async {
+Future<bool> openEvent(BuildContext context, AgendaBackend backend, Profile profile, ChoirEvent e, AgendaData data,
+    [LibraryLinks? links]) async {
   final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
     builder: (_) => EventScreen(
+      links: links,
       backend: backend,
       event: e,
       profile: profile,
@@ -44,8 +47,9 @@ enum _View { upcoming, past, attendance }
 class AgendaPanel extends StatefulWidget {
   final Profile profile;
   final AgendaBackend backend;
+  final LibraryLinks? links;
 
-  const AgendaPanel({super.key, required this.profile, required this.backend});
+  const AgendaPanel({super.key, required this.profile, required this.backend, this.links});
 
   @override
   State<AgendaPanel> createState() => _AgendaPanelState();
@@ -55,6 +59,7 @@ class _AgendaPanelState extends State<AgendaPanel> {
   AgendaData? _data;
   String? _error;
   _View _view = _View.upcoming;
+  EventKind? _pastKind;
 
   bool get _canEdit => widget.profile.isEditor;
 
@@ -116,9 +121,11 @@ class _AgendaPanelState extends State<AgendaPanel> {
                   WeekPlannerScreen(backend: widget.backend, events: data.events)),
               tile(Icons.music_note_rounded, AppColors.aubergineLight, 'Une répétition',
                   'Une répétition en plus, à la date de ton choix',
-                  EventFormScreen(backend: widget.backend, kind: EventKind.repetition, locations: locations)),
+                  EventFormScreen(
+                      backend: widget.backend, kind: EventKind.repetition, locations: locations, links: widget.links)),
               tile(Icons.star_rounded, const Color(0xFFB8860B), 'Une prestation', 'Concert, mariage, fête…',
-                  EventFormScreen(backend: widget.backend, kind: EventKind.prestation, locations: locations)),
+                  EventFormScreen(
+                      backend: widget.backend, kind: EventKind.prestation, locations: locations, links: widget.links)),
             ]),
           ),
         );
@@ -172,7 +179,20 @@ class _AgendaPanelState extends State<AgendaPanel> {
               const SizedBox(height: 14),
               ...switch (_view) {
                 _View.upcoming => _eventList(data, data.upcoming, upcoming: true),
-                _View.past => _eventList(data, data.past, upcoming: false),
+                _View.past => [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: Wrap(spacing: 8, children: [
+                      for (final (k, label) in [(null, 'Tout'), (EventKind.repetition, 'Répétitions'), (EventKind.prestation, 'Prestations')])
+                        ChoiceChip(
+                          label: Text(label),
+                          selected: _pastKind == k,
+                          onSelected: (_) => setState(() => _pastKind = k),
+                        ),
+                    ]),
+                  ),
+                  ..._eventList(data, data.past.where((e) => _pastKind == null || e.kind == _pastKind).toList(), upcoming: false),
+                ],
                 _View.attendance => [
                   _canEdit
                       ? AttendanceOverview([for (final m in data.members) MemberStats.compute(m, data.events)])
@@ -226,7 +246,7 @@ class _AgendaPanelState extends State<AgendaPanel> {
             event: e,
             myId: widget.profile.id,
             onTap: () async {
-              if (await openEvent(context, widget.backend, widget.profile, e, data)) _load();
+              if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links)) _load();
             },
             onRespond: upcoming ? (r) => _respond(e, r) : null,
           ),
@@ -240,8 +260,10 @@ class NextEventsSection extends StatefulWidget {
   final Profile profile;
   final AgendaBackend backend;
   final VoidCallback onOpenAgenda;
+  final LibraryLinks? links;
 
-  const NextEventsSection({super.key, required this.profile, required this.backend, required this.onOpenAgenda});
+  const NextEventsSection(
+      {super.key, required this.profile, required this.backend, required this.onOpenAgenda, this.links});
 
   @override
   State<NextEventsSection> createState() => _NextEventsSectionState();
@@ -273,9 +295,43 @@ class _NextEventsSectionState extends State<NextEventsSection> {
     final rehearsal = upcoming.where((e) => e.isRehearsal).firstOrNull;
     final show = upcoming.where((e) => !e.isRehearsal).firstOrNull;
     final items = [rehearsal, show].whereType<ChoirEvent>().toList()..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    // Rappel : les autres événements des 3 prochaines semaines sans réponse.
+    final soon = DateTime.now().add(const Duration(days: 21));
+    final waiting = upcoming
+        .where((e) => !items.contains(e) && e.startsAt.isBefore(soon))
+        .where((e) => e.participantOf(widget.profile.id)?.response == null)
+        .length;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SectionHeader(rehearsal == null ? 'Agenda' : 'Prochaine répétition',
           actionLabel: 'Agenda', onAction: widget.onOpenAgenda),
+      if (waiting > 0)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Material(
+            color: AppColors.gold.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: widget.onOpenAgenda,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  const Icon(Icons.notifications_active_rounded, color: Color(0xFFB8860B)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      waiting == 1
+                          ? 'Un autre événement attend ta réponse'
+                          : '$waiting autres événements attendent ta réponse',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded),
+                ]),
+              ),
+            ),
+          ),
+        ),
       if (items.isEmpty)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -295,7 +351,7 @@ class _NextEventsSectionState extends State<NextEventsSection> {
             event: e,
             myId: widget.profile.id,
             onTap: () async {
-              if (await openEvent(context, widget.backend, widget.profile, e, data)) _load();
+              if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links)) _load();
             },
             onRespond: (r) async {
               await widget.backend.setResponse(e.id, widget.profile.id, r);

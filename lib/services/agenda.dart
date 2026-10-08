@@ -14,8 +14,13 @@ abstract class AgendaBackend {
     DateTime? endsAt,
     String? location,
     String? notes,
+    List<String> songIds = const [],
+    String? bookletId,
   });
   Future<void> deleteEvent(String id);
+  Future<List<Announcement>> announcements();
+  Future<void> postAnnouncement(String body);
+  Future<void> deleteAnnouncement(String id);
   Future<void> setResponse(String eventId, String profileId, EventResponse response);
   Future<void> setAttended(String eventId, String profileId, bool? attended);
 }
@@ -71,6 +76,8 @@ class SupabaseAgenda implements AgendaBackend {
     DateTime? endsAt,
     String? location,
     String? notes,
+    List<String> songIds = const [],
+    String? bookletId,
   }) async {
     final data = {
       'kind': kind.name,
@@ -79,6 +86,8 @@ class SupabaseAgenda implements AgendaBackend {
       'ends_at': endsAt?.toUtc().toIso8601String(),
       'location': _clean(location),
       'notes': _clean(notes),
+      'song_ids': songIds,
+      'booklet_id': bookletId,
     };
     if (id == null) {
       await _db.from('events').insert(data);
@@ -89,6 +98,18 @@ class SupabaseAgenda implements AgendaBackend {
 
   @override
   Future<void> deleteEvent(String id) => _db.from('events').delete().eq('id', id);
+
+  @override
+  Future<List<Announcement>> announcements() async {
+    final rows = await _db.from('announcements').select().order('created_at', ascending: false).limit(20);
+    return rows.map(Announcement.fromMap).toList();
+  }
+
+  @override
+  Future<void> postAnnouncement(String body) => _db.from('announcements').insert({'body': body.trim()});
+
+  @override
+  Future<void> deleteAnnouncement(String id) => _db.from('announcements').delete().eq('id', id);
 
   @override
   Future<void> setResponse(String eventId, String profileId, EventResponse response) => _db

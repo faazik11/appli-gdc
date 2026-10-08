@@ -7,13 +7,18 @@ import '../models.dart';
 import '../services/agenda.dart';
 import '../services/repository.dart';
 import '../theme.dart';
+import '../widgets/announcements.dart';
+import '../widgets/install_card.dart';
+import '../widgets/library_links.dart';
 import '../widgets/ui.dart';
 import 'agenda_screen.dart';
 import 'booklet_editor_screen.dart';
+import 'concert_screen.dart';
 import 'members_screen.dart';
 import 'pdf_view_screen.dart';
 import 'song_form_screen.dart';
 import 'song_screen.dart';
+import 'tools_screen.dart';
 
 class LibraryData {
   final List<Category> categories;
@@ -40,6 +45,9 @@ class HomeScreen extends StatefulWidget {
   final AgendaBackend? agenda;
   final int initialTab;
 
+  /// Pour la démo : liens vers des fichiers locaux au lieu des liens signés.
+  final Future<String> Function(String bucket, String path)? signUrl;
+
   const HomeScreen({
     super.key,
     required this.profile,
@@ -47,6 +55,7 @@ class HomeScreen extends StatefulWidget {
     this.membersPanel,
     this.agenda,
     this.initialTab = 0,
+    this.signUrl,
   });
 
   @override
@@ -120,6 +129,25 @@ class _HomeScreenState extends State<HomeScreen> {
     if (saved == true) _load();
   }
 
+  void _openTools(int tab) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => ToolsScreen(initialTab: tab)));
+
+  void _openConcert(Booklet b) {
+    if (b.pdfPath == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ConcertScreen(title: b.title, bucket: Repository.bookletsBucket, path: b.pdfPath!, signUrl: widget.signUrl),
+    ));
+  }
+
+  LibraryLinks get _links => LibraryLinks(
+        songs: _data.songs,
+        categories: _data.categories,
+        booklets: _data.booklets,
+        openSong: _openSong,
+        openBooklet: _openBooklet,
+        openConcert: _openConcert,
+      );
+
   void _openBooklet(Booklet b) {
     if (b.pdfPath == null) return;
     Navigator.of(context).push(MaterialPageRoute(
@@ -191,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
             : switch (_tab) {
                 _Tab.home => _homeTab(wide),
                 _Tab.songs => _songsTab(),
-                _Tab.agenda => AgendaPanel(profile: widget.profile, backend: _agenda),
+                _Tab.agenda => AgendaPanel(profile: widget.profile, backend: _agenda, links: _links),
                 _Tab.booklets => _bookletsTab(wide),
                 _Tab.members => widget.membersPanel ?? const MembersPanel(),
               };
@@ -290,10 +318,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _hero(),
         ContentWidth(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const InstallCard(),
+            AnnouncementsSection(profile: widget.profile, backend: _agenda),
             NextEventsSection(
               profile: widget.profile,
               backend: _agenda,
               onOpenAgenda: () => setState(() => _tab = _Tab.agenda),
+              links: _links,
             ),
             const SectionHeader('Bibliothèque'),
             Padding(
@@ -319,6 +350,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.only(top: 12),
                       child: SizedBox(height: 110, width: double.infinity, child: categoryCard(c)),
                     ),
+              ]),
+            ),
+            const SectionHeader('Outils'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(children: [
+                Expanded(child: _quickAction(Icons.tune_rounded, 'Diapason', () => _openTools(0))),
+                const SizedBox(width: 12),
+                Expanded(child: _quickAction(Icons.timer_outlined, 'Métronome', () => _openTools(1))),
               ]),
             ),
             if (_canEdit) ...[

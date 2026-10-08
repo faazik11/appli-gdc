@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../services/agenda.dart';
 import '../widgets/event_widgets.dart';
+import '../widgets/library_links.dart';
 import '../widgets/ui.dart';
 
 DateTime _at(DateTime day, TimeOfDay t) => DateTime(day.year, day.month, day.day, t.hour, t.minute);
@@ -74,8 +75,10 @@ class EventFormScreen extends StatefulWidget {
   final EventKind kind;
   final ChoirEvent? event;
   final List<String> locations;
+  final LibraryLinks? links;
 
-  const EventFormScreen({super.key, required this.backend, required this.kind, this.event, this.locations = const []});
+  const EventFormScreen(
+      {super.key, required this.backend, required this.kind, this.event, this.locations = const [], this.links});
 
   @override
   State<EventFormScreen> createState() => _EventFormScreenState();
@@ -93,7 +96,80 @@ class _EventFormScreenState extends State<EventFormScreen> {
       ? (_kind == EventKind.repetition ? const TimeOfDay(hour: 20, minute: 0) : const TimeOfDay(hour: 18, minute: 0))
       : TimeOfDay.fromDateTime(widget.event!.startsAt);
   late TimeOfDay? _end = widget.event?.endsAt == null ? null : TimeOfDay.fromDateTime(widget.event!.endsAt!);
+  late final List<String> _songIds = [...?widget.event?.songIds];
+  late String? _bookletId = widget.event?.bookletId;
   bool _saving = false;
+
+  LibraryLinks get _links => widget.links ?? LibraryLinks.empty;
+
+  Future<void> _pickSongs() async {
+    final ids = await pickSongs(context, _links, _songIds);
+    if (ids != null) {
+      setState(() => _songIds
+        ..clear()
+        ..addAll(ids));
+    }
+  }
+
+  Widget _songsSection(ThemeData theme) {
+    final rehearsal = _kind == EventKind.repetition;
+    final songs = _songIds.map(_links.song).whereType<Song>().toList();
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const SizedBox(height: 18),
+      Text(rehearsal ? 'Chants à travailler' : 'Programme', style: theme.textTheme.titleSmall),
+      const SizedBox(height: 8),
+      if (!rehearsal) ...[
+        DropdownButtonFormField<String?>(
+          initialValue: _links.booklet(_bookletId)?.id,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Livret de la prestation', prefixIcon: Icon(Icons.menu_book_rounded)),
+          items: [
+            const DropdownMenuItem(value: null, child: Text('Aucun livret')),
+            for (final b in _links.booklets) DropdownMenuItem(value: b.id, child: Text(b.title, overflow: TextOverflow.ellipsis)),
+          ],
+          onChanged: (v) => setState(() => _bookletId = v),
+        ),
+        const SizedBox(height: 8),
+        if (_bookletId != null && songs.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text('Le programme reprend les chants du livret.',
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          ),
+      ],
+      if (songs.isNotEmpty)
+        Card(
+          child: ReorderableListView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            onReorderItem: (from, to) => setState(() => _songIds.insert(to, _songIds.removeAt(from))),
+            children: [
+              for (final (i, s) in songs.indexed)
+                ListTile(
+                  key: ValueKey(s.id),
+                  dense: true,
+                  leading: ReorderableDragStartListener(index: i, child: const Icon(Icons.drag_indicator_rounded)),
+                  title: Text(s.title),
+                  trailing: IconButton(
+                    tooltip: 'Retirer',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => setState(() => _songIds.remove(s.id)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          icon: const Icon(Icons.queue_music_rounded),
+          label: Text(songs.isEmpty ? 'Choisir des chants' : 'Modifier la liste'),
+          onPressed: _pickSongs,
+        ),
+      ),
+    ]);
+  }
 
   Future<void> _pickDay() async {
     final d = await showDatePicker(
@@ -128,6 +204,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
         endsAt: endsAt,
         location: _location.text,
         notes: _notes.text,
+        songIds: _songIds,
+        bookletId: _kind == EventKind.prestation ? _bookletId : null,
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -209,6 +287,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
               ),
               const SizedBox(height: 18),
               LocationField(controller: _location, suggestions: widget.locations),
+              _songsSection(theme),
               const SizedBox(height: 14),
               TextField(
                 controller: _notes,

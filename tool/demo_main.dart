@@ -99,6 +99,7 @@ Future<void> main() async {
             profile: q['as'] == 'membre' ? _profiles[2] : _profiles.first,
             initialTab: tab,
             load: () async => LibraryData(_categories, _songs, _booklets),
+            signUrl: (_, __) async => Uri.base.resolve('sample.pdf').toString(),
             agenda: _DemoAgenda(q['as'] == 'membre' ? 'p3' : null),
             membersPanel: MembersPanel(load: () async => _profiles, setRole: (_, __) async {}),
           ),
@@ -160,6 +161,7 @@ class _DemoAgenda implements AgendaBackend {
     ChoirEvent(
       id: 'e1',
       kind: EventKind.repetition,
+      songIds: const ['4', '2', '8'],
       startsAt: _d(_untilWeekday(DateTime.wednesday), 20, 0),
       endsAt: _d(_untilWeekday(DateTime.wednesday), 22, 0),
       location: 'Salle des fêtes de Narbonne',
@@ -181,6 +183,7 @@ class _DemoAgenda implements AgendaBackend {
     ChoirEvent(
       id: 'e3',
       kind: EventKind.prestation,
+      bookletId: 'b1',
       title: 'Mariage de Sarah et Karim',
       startsAt: _d(_untilWeekday(DateTime.saturday) + 7, 18, 0),
       location: 'Domaine de Fontfroide',
@@ -196,14 +199,7 @@ class _DemoAgenda implements AgendaBackend {
   @override
   Future<List<ChoirEvent>> events() async => [
         for (final e in _events)
-          ChoirEvent(
-            id: e.id,
-            kind: e.kind,
-            title: e.title,
-            startsAt: e.startsAt,
-            endsAt: e.endsAt,
-            location: e.location,
-            notes: e.notes,
+          e.copyWith(
             participants: memberId == null
                 ? e.participants
                 : [
@@ -224,10 +220,26 @@ class _DemoAgenda implements AgendaBackend {
   Future<List<Profile>> members() async => _profiles.where((p) => p.isApproved).toList();
 
   @override
-  Future<void> saveEvent({String? id, required EventKind kind, String? title, required DateTime startsAt, DateTime? endsAt, String? location, String? notes}) async {
+  Future<void> saveEvent({String? id, required EventKind kind, String? title, required DateTime startsAt, DateTime? endsAt, String? location, String? notes, List<String> songIds = const [], String? bookletId}) async {
+    final old = _events.where((e) => e.id == id).firstOrNull;
     _events.removeWhere((e) => e.id == id);
-    _events.add(ChoirEvent(id: id ?? 'n${_events.length}', kind: kind, title: title, startsAt: startsAt, endsAt: endsAt, location: location, notes: notes));
+    _events.add(ChoirEvent(id: id ?? 'n${_events.length}', kind: kind, title: title, startsAt: startsAt, endsAt: endsAt, location: location, notes: notes, songIds: songIds, bookletId: bookletId, participants: old?.participants ?? const []));
   }
+
+  final _announcements = [
+    Announcement(id: 'a1', body: 'Samedi on termine à 17h précises : la salle est réservée après nous. Pensez à apporter vos livrets du mariage !', authorId: 'p2', createdAt: DateTime.now().subtract(const Duration(hours: 3))),
+    Announcement(id: 'a2', body: 'Bienvenue à Lina qui rejoint les altos 🎶', authorId: 'p1', createdAt: DateTime.now().subtract(const Duration(days: 2))),
+  ];
+
+  @override
+  Future<List<Announcement>> announcements() async => [..._announcements];
+
+  @override
+  Future<void> postAnnouncement(String body) async =>
+      _announcements.insert(0, Announcement(id: 'a${_announcements.length + 1}', body: body, authorId: 'p1', createdAt: DateTime.now()));
+
+  @override
+  Future<void> deleteAnnouncement(String id) async => _announcements.removeWhere((a) => a.id == id);
 
   @override
   Future<void> deleteEvent(String id) async => _events.removeWhere((e) => e.id == id);
@@ -236,7 +248,7 @@ class _DemoAgenda implements AgendaBackend {
     final i = _events.indexWhere((e) => e.id == eventId);
     final e = _events[i];
     final parts = [...e.participants.where((p) => p.profileId != profileId), f(e.participantOf(profileId))];
-    _events[i] = ChoirEvent(id: e.id, kind: e.kind, title: e.title, startsAt: e.startsAt, endsAt: e.endsAt, location: e.location, notes: e.notes, participants: parts);
+    _events[i] = e.copyWith(participants: parts);
   }
 
   @override

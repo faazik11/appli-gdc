@@ -199,6 +199,10 @@ class ChoirEvent {
   final String? notes;
   final List<Participant> participants;
 
+  /// Chants à travailler (répétition) ou programme (prestation).
+  final List<String> songIds;
+  final String? bookletId;
+
   /// Totaux calculés côté serveur ; un simple membre ne reçoit que sa propre ligne de participants.
   final EventSummary? summary;
 
@@ -211,10 +215,15 @@ class ChoirEvent {
     this.location,
     this.notes,
     this.participants = const [],
+    this.songIds = const [],
+    this.bookletId,
     this.summary,
   });
 
-  ChoirEvent withSummary(EventSummary? s, {List<Participant>? participants}) => ChoirEvent(
+  ChoirEvent withSummary(EventSummary? s, {List<Participant>? participants}) =>
+      copyWith(participants: participants, summary: s);
+
+  ChoirEvent copyWith({List<Participant>? participants, EventSummary? summary}) => ChoirEvent(
         id: id,
         kind: kind,
         title: title,
@@ -223,7 +232,9 @@ class ChoirEvent {
         location: location,
         notes: notes,
         participants: participants ?? this.participants,
-        summary: s,
+        songIds: songIds,
+        bookletId: bookletId,
+        summary: summary ?? this.summary,
       );
 
   bool get isRehearsal => kind == EventKind.repetition;
@@ -255,8 +266,27 @@ class ChoirEvent {
         endsAt: m['ends_at'] == null ? null : DateTime.parse(m['ends_at'] as String).toLocal(),
         location: m['location'] as String?,
         notes: m['notes'] as String?,
+        songIds: (m['song_ids'] as List?)?.cast<String>() ?? const [],
+        bookletId: m['booklet_id'] as String?,
         participants: ((m['event_participants'] as List?) ?? const [])
             .map((e) => Participant.fromMap(Map<String, dynamic>.from(e as Map)))
             .toList(),
+      );
+}
+
+/// Message du chef de chœur affiché sur l'accueil.
+class Announcement {
+  final String id;
+  final String body;
+  final String? authorId;
+  final DateTime createdAt;
+
+  const Announcement({required this.id, required this.body, this.authorId, required this.createdAt});
+
+  factory Announcement.fromMap(Map<String, dynamic> m) => Announcement(
+        id: m['id'] as String,
+        body: m['body'] as String,
+        authorId: m['created_by'] as String?,
+        createdAt: DateTime.parse(m['created_at'] as String).toLocal(),
       );
 }

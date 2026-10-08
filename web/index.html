@@ -18,21 +18,28 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Appli de la chorale GDC : chants, écoute et livrets.">
+  <meta name="description" content="L'appli du Groupe de Chant Narbonne : chants, agenda, livrets.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="appli_gdc">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="theme-color" content="#2E1A47">
+  <meta name="apple-mobile-web-app-title" content="GDC">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>Appli GDC</title>
+  <title>Groupe de Chant Narbonne</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    // Lu par l'appli pour savoir si elle est déjà installée sur l'écran d'accueil.
+    window.gdcStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    window.gdcIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  </script>
   <!-- Moteur PDF utilisé par le lecteur de paroles (Syncfusion) -->
   <script type="module" async>
     import * as pdfjsLib from './pdfjs/pdf.min.mjs';
