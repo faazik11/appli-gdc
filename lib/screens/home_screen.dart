@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models.dart';
 import '../services/agenda.dart';
 import '../services/file_store.dart';
+import '../services/offline.dart';
+import '../services/page_images.dart';
 import '../services/repository.dart';
 import '../theme.dart';
 import '../widgets/announcements.dart';
@@ -195,15 +197,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Télécharge tous les livrets et toutes les paroles pour qu'ils s'ouvrent sans attendre.
+  /// Télécharge livrets, paroles et audios pour qu'ils s'ouvrent sans attendre, même hors connexion.
   Future<void> _downloadAll() async {
     final files = [
       for (final b in _data.booklets)
         if (b.pdfPath != null) (Repository.bookletsBucket, b.pdfPath!),
       for (final s in _data.songs)
         if (s.lyricsPdfPath != null) (Repository.lyricsBucket, s.lyricsPdfPath!),
+      for (final s in _data.songs)
+        if (s.audioPath != null) (Repository.audioBucket, s.audioPath!),
     ];
+    // Les livrets sont aussi préparés page par page pour le mode concert.
+    final booklets = _data.booklets.where((b) => b.pdfPath != null).toList();
+    final total = files.length + booklets.length;
+    final media = MediaQuery.of(context);
+    final width = PageImages.widthFor(media.size.width, media.size.height, media.devicePixelRatio);
     final progress = ValueNotifier(0);
+    final step = ValueNotifier('Téléchargement des fichiers');
     var failed = 0;
     var cancelled = false;
     showDialog<void>(
@@ -214,9 +224,9 @@ class _HomeScreenState extends State<HomeScreen> {
         content: ValueListenableBuilder<int>(
           valueListenable: progress,
           builder: (_, n, __) => Column(mainAxisSize: MainAxisSize.min, children: [
-            LinearProgressIndicator(value: files.isEmpty ? 1 : n / files.length),
+            LinearProgressIndicator(value: total == 0 ? 1 : n / total),
             const SizedBox(height: 12),
-            Text('$n / ${files.length} fichiers'),
+            Text('${step.value} · $n / $total'),
           ]),
         ),
         actions: [
@@ -239,11 +249,19 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       progress.value++;
     }
+    step.value = 'Préparation des livrets';
+    for (final b in booklets) {
+      if (cancelled) return;
+      final pages = PageImages(bucket: Repository.bookletsBucket, path: b.pdfPath!, width: width);
+      await pages.start();
+      pages.dispose();
+      progress.value++;
+    }
     if (!mounted || cancelled) return;
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(failed == 0
-          ? 'Les ${files.length} fichiers sont gardés sur cet appareil.'
+          ? 'Tout est gardé sur cet appareil : ${files.length} fichiers, livrets prêts pour le mode concert.'
           : '${files.length - failed} fichiers gardés, $failed n\'ont pas pu être téléchargés.'),
     ));
   }
@@ -292,6 +310,36 @@ class _HomeScreenState extends State<HomeScreen> {
         });
 
     final fab = _fab();
+    final page = Column(children: [
+      ValueListenableBuilder<bool>(
+        valueListenable: Offline.isOffline,
+        builder: (context, offline, _) => !offline
+            ? const SizedBox.shrink()
+            : Material(
+                color: AppColors.aubergine,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(children: [
+                      const Icon(Icons.cloud_off_rounded, color: AppColors.goldLight, size: 18),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('Hors connexion : tu vois les dernières données enregistrées',
+                            style: TextStyle(fontFamily: 'Poppins', color: Colors.white, fontSize: 12.5)),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(foregroundColor: AppColors.goldLight),
+                        onPressed: _load,
+                        child: const Text('Réessayer'),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+      ),
+      Expanded(child: body),
+    ]);
     if (wide) {
       return Scaffold(
         floatingActionButton: fab,
@@ -307,13 +355,13 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const VerticalDivider(width: 1),
-          Expanded(child: SafeArea(child: body)),
+          Expanded(child: SafeArea(child: page)),
         ]),
       );
     }
     return Scaffold(
       floatingActionButton: fab,
-      body: SafeArea(bottom: false, child: body),
+      body: SafeArea(bottom: false, child: page),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: select,

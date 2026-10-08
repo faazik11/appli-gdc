@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -6,8 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
-import '../services/file_store.dart';
+import '../services/page_images.dart';
 import '../theme.dart';
+import '../widgets/pdf_pages_view.dart';
 
 /// Mode concert : le livret en plein écran, page par page, écran toujours allumé.
 /// Toutes les pages sont préparées en images à l'avance (et gardées sur l'appareil)
@@ -26,86 +26,47 @@ class ConcertScreen extends StatefulWidget {
 class _ConcertScreenState extends State<ConcertScreen> {
   final _pageController = PageController();
   final _pdfController = PdfViewerController();
-  Uint8List? _pdf;
-  PageRenderer? _renderer;
-  bool _fallback = false;
-  String? _error;
-  List<Uint8List?> _pages = const [];
+  PageImages? _images;
   int _page = 0;
   bool _controls = true;
-  bool _disposed = false;
 
-  int get _ready => _pages.where((p) => p != null).length;
+  List<Uint8List?> get _pages => _images?.pages ?? const [];
+  int get _ready => _images?.ready ?? 0;
+  bool get _fallback => _images?.fallback ?? false;
 
   @override
   void initState() {
     super.initState();
     WakelockPlus.enable().catchError((_) {});
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _prepare());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_images == null) {
+      final media = MediaQuery.of(context);
+      _images = PageImages(
+        bucket: widget.bucket,
+        path: widget.path,
+        width: PageImages.widthFor(media.size.width, media.size.height, media.devicePixelRatio),
+      )..addListener(_changed);
+      _images!.start();
+    }
+  }
+
+  void _changed() {
+    if (!mounted) return;
+    setState(() {});
+    _decodeAround(_page);
   }
 
   @override
   void dispose() {
-    _disposed = true;
-    _renderer?.close();
+    _images?.dispose();
     WakelockPlus.disable().catchError((_) {});
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
-  }
-
-  Future<void> _prepare() async {
-    try {
-      final pdf = await FileStore.instance.load(widget.bucket, widget.path);
-      if (_disposed) return;
-      final renderer = await openPageRenderer(pdf);
-      if (_disposed) {
-        renderer?.close();
-        return;
-      }
-      if (renderer == null) {
-        setState(() {
-          _pdf = pdf;
-          _fallback = true;
-        });
-        return;
-      }
-      _renderer = renderer;
-      setState(() => _pages = List.filled(renderer.pageCount, null));
-      await _renderAll();
-    } catch (e) {
-      if (!_disposed) setState(() => _error = 'Impossible d\'ouvrir le livret : $e');
-    }
-  }
-
-  /// Largeur de rendu : celle de l'écran en pixels réels, arrondie pour réutiliser les pages gardées.
-  int get _width {
-    final media = MediaQuery.of(context);
-    final px = max(media.size.width, media.size.height * 0.75) * media.devicePixelRatio;
-    return ((px / 200).ceil() * 200).clamp(800, 1600);
-  }
-
-  Future<void> _renderAll() async {
-    final width = _width;
-    final store = FileStore.instance;
-    var i = 0;
-    while (!_disposed && _ready < _pages.length) {
-      // On prépare d'abord autour de la page affichée.
-      final next = [for (var k = _page; k < _pages.length; k++) k, for (var k = 0; k < _page; k++) k]
-          .firstWhere((k) => _pages[k] == null, orElse: () => -1);
-      if (next < 0) break;
-      var jpeg = await store.cachedPage(widget.bucket, widget.path, next, width);
-      if (jpeg == null) {
-        jpeg = await _renderer!.render(next, width);
-        unawaited(store.storePage(widget.bucket, widget.path, next, width, jpeg));
-      }
-      if (_disposed || !mounted) return;
-      setState(() => _pages[next] = jpeg);
-      if ((next - _page).abs() <= 2) _decodeAround(_page);
-      if (++i % 8 == 0) await Future<void>.delayed(Duration.zero);
-    }
-    _renderer?.close();
-    _renderer = null;
   }
 
   /// Décode d'avance les pages voisines : le changement de page est immédiat.
@@ -128,17 +89,19 @@ class _ConcertScreenState extends State<ConcertScreen> {
   }
 
   Widget _viewer() {
-    if (_error != null) {
+    final error = _images?.error;
+    if (error != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)),
+          child: Text('Impossible d\'ouvrir le livret : $error',
+              textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)),
         ),
       );
     }
     if (_fallback) {
       return SfPdfViewer.memory(
-        _pdf!,
+        _images!.pdf!,
         controller: _pdfController,
         pageLayoutMode: PdfPageLayoutMode.single,
         scrollDirection: PdfScrollDirection.horizontal,
@@ -162,6 +125,7 @@ class _ConcertScreenState extends State<ConcertScreen> {
       itemCount: _pages.length,
       onPageChanged: (i) {
         setState(() => _page = i);
+        _images?.focus = i;
         _decodeAround(i);
       },
       itemBuilder: (context, i) {
@@ -169,11 +133,17 @@ class _ConcertScreenState extends State<ConcertScreen> {
         if (img == null) {
           return const Center(child: CircularProgressIndicator(color: AppColors.gold));
         }
+        // Téléphone en paysage : la page prend toute la largeur et défile verticalement.
+        final landscape = MediaQuery.orientationOf(context) == Orientation.landscape;
         return GestureDetector(
           onTap: () => setState(() => _controls = !_controls),
           child: InteractiveViewer(
             maxScale: 4,
-            child: Center(child: Image.memory(img, fit: BoxFit.contain, gaplessPlayback: true)),
+            child: landscape
+                ? SingleChildScrollView(
+                    child: Image.memory(img, width: double.infinity, fit: BoxFit.fitWidth, gaplessPlayback: true),
+                  )
+                : Center(child: Image.memory(img, fit: BoxFit.contain, gaplessPlayback: true)),
           ),
         );
       },
@@ -228,6 +198,16 @@ class _ConcertScreenState extends State<ConcertScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontFamily: 'Poppins', color: Colors.white, fontWeight: FontWeight.w600)),
                         ),
+                        if (!_fallback && _pages.isNotEmpty)
+                          IconButton(
+                            tooltip: 'Sommaire',
+                            color: Colors.white,
+                            icon: const Icon(Icons.toc_rounded),
+                            onPressed: () async {
+                              final page = await showOutline(context, _images!);
+                              if (page != null && _pageController.hasClients) _pageController.jumpToPage(page);
+                            },
+                          ),
                         if (total != null && total > 0)
                           Padding(
                             padding: const EdgeInsets.only(right: 12),

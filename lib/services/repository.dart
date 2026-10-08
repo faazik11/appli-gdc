@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
+import 'offline.dart';
 
 SupabaseClient get _db => Supabase.instance.client;
 
@@ -18,12 +19,14 @@ class Repository {
   Future<Profile?> currentProfile() async {
     final user = _db.auth.currentUser;
     if (user == null) return null;
-    final row = await _db.from('profiles').select().eq('id', user.id).maybeSingle();
-    return row == null ? null : Profile.fromMap(row);
+    final rows = await Offline.rows('profil', () => _db.from('profiles').select().eq('id', user.id));
+    if (rows.isEmpty) return null;
+    await Offline.saveLastProfile(rows.first);
+    return Profile.fromMap(rows.first);
   }
 
   Future<List<Profile>> profiles() async {
-    final rows = await _db.from('profiles').select().order('full_name');
+    final rows = await Offline.rows('profils', () => _db.from('profiles').select().order('full_name'));
     return rows.map(Profile.fromMap).toList();
   }
 
@@ -31,12 +34,12 @@ class Repository {
       _db.from('profiles').update({'role': roleToDb(role)}).eq('id', profileId);
 
   Future<List<Category>> categories() async {
-    final rows = await _db.from('categories').select().order('position');
+    final rows = await Offline.rows('categories', () => _db.from('categories').select().order('position'));
     return rows.map(Category.fromMap).toList();
   }
 
   Future<List<Song>> songs() async {
-    final rows = await _db.from('songs').select().order('title');
+    final rows = await Offline.rows('chants', () => _db.from('songs').select().order('title'));
     return rows.map(Song.fromMap).toList();
   }
 
@@ -77,11 +80,13 @@ class Repository {
   }
 
   Future<List<Booklet>> booklets() async {
-    final rows = await _db
-        .from('booklets')
-        .select()
-        .order('event_date', ascending: false, nullsFirst: false)
-        .order('created_at', ascending: false);
+    final rows = await Offline.rows(
+        'livrets',
+        () => _db
+            .from('booklets')
+            .select()
+            .order('event_date', ascending: false, nullsFirst: false)
+            .order('created_at', ascending: false));
     return rows.map(Booklet.fromMap).toList();
   }
 

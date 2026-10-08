@@ -27,11 +27,26 @@ Future<void> devicePut(String key, Uint8List bytes) async {
   } catch (_) {}
 }
 
+/// Adresse locale pour lire des octets (audio) sans les retélécharger.
+Future<String?> localUrl(Uint8List bytes, String mimeType) async {
+  try {
+    final dir = await getTemporaryDirectory();
+    final f = File('${dir.path}/lecture_${bytes.length}_${bytes.hashCode}');
+    if (!await f.exists()) await f.writeAsBytes(bytes);
+    return f.uri.toString();
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Rendu des pages en images : pas disponible hors navigateur (le lecteur PDF prend le relais).
 Future<PageRenderer?> openPageRenderer(Uint8List pdf) async => null;
 
+typedef OutlineEntry = ({String title, int page, int depth});
+
 abstract class PageRenderer {
   int get pageCount;
+  Future<(double, List<OutlineEntry>)> info();
   Future<Uint8List> render(int index, int width);
   void close();
 }

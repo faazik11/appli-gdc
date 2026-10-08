@@ -37,6 +37,31 @@ window.gdcFiles = {
     return id;
   },
 
+  // Proportions de la première page et sommaire (signets) : [titre, page, niveau].
+  async info(id) {
+    const doc = docs.get(id);
+    const first = await doc.getPage(1);
+    const vp = first.getViewport({ scale: 1 });
+    const outline = [];
+    const walk = async (items, depth) => {
+      for (const item of items ?? []) {
+        try {
+          let dest = item.dest;
+          if (typeof dest === 'string') dest = await doc.getDestination(dest);
+          if (Array.isArray(dest)) {
+            const page = await doc.getPageIndex(dest[0]);
+            outline.push([item.title, page, depth]);
+          }
+        } catch (e) {}
+        await walk(item.items, depth + 1);
+      }
+    };
+    try {
+      await walk(await doc.getOutline(), 0);
+    } catch (e) {}
+    return { ratio: vp.height / vp.width, outline };
+  },
+
   pageCount(id) {
     return docs.get(id)?.numPages ?? 0;
   },
@@ -58,6 +83,11 @@ window.gdcFiles = {
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.88));
     canvas.width = canvas.height = 0;
     return new Uint8Array(await blob.arrayBuffer());
+  },
+
+  // Adresse locale (blob:) pour lire un fichier gardé, par exemple un MP3.
+  objectUrl(bytes, type) {
+    return URL.createObjectURL(new Blob([bytes], { type }));
   },
 
   close(id) {

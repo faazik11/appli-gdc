@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import '../platform/device_files.dart';
 import 'repository.dart';
 
-export '../platform/device_files.dart' show PageRenderer, openPageRenderer;
+export '../platform/device_files.dart' show PageRenderer, openPageRenderer, localUrl, OutlineEntry;
 
 /// Fichiers (paroles, livrets) téléchargés une fois puis gardés sur l'appareil.
 /// Le chemin d'un fichier change à chaque nouveau dépôt, donc une copie gardée reste à jour.

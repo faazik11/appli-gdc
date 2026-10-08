@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
+import 'offline.dart';
 
 /// Données de l'agenda (répétitions, prestations, réponses et présences).
 abstract class AgendaBackend {
@@ -33,9 +34,9 @@ class SupabaseAgenda implements AgendaBackend {
   @override
   Future<List<ChoirEvent>> events() async {
     final r = await Future.wait<dynamic>([
-      _db.from('events').select('*, event_participants(*)').order('starts_at').then((v) => v),
-      _db.rpc('event_counts').then((v) => v),
-      _db.rpc('event_responses').then((v) => v),
+      Offline.rows('evenements', () => _db.from('events').select('*, event_participants(*)').order('starts_at')),
+      Offline.rows('totaux', () async => await _db.rpc('event_counts') as List),
+      Offline.rows('reponses', () async => await _db.rpc('event_responses') as List),
     ]);
     // Un simple membre ne lit que sa ligne : on complète avec les réponses des autres (sans l'appel).
     final responses = <String, List<Participant>>{};
@@ -63,7 +64,7 @@ class SupabaseAgenda implements AgendaBackend {
 
   @override
   Future<List<Profile>> members() async {
-    final rows = await _db.from('profiles').select().neq('role', 'en_attente').order('full_name');
+    final rows = await Offline.rows('membres', () => _db.from('profiles').select().neq('role', 'en_attente').order('full_name'));
     return rows.map(Profile.fromMap).toList();
   }
 
@@ -101,7 +102,8 @@ class SupabaseAgenda implements AgendaBackend {
 
   @override
   Future<List<Announcement>> announcements() async {
-    final rows = await _db.from('announcements').select().order('created_at', ascending: false).limit(20);
+    final rows = await Offline.rows(
+        'annonces', () => _db.from('announcements').select().order('created_at', ascending: false).limit(20));
     return rows.map(Announcement.fromMap).toList();
   }
 

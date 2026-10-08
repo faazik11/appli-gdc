@@ -8,12 +8,14 @@ import 'models.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/pending_screen.dart';
+import 'services/offline.dart';
 import 'services/repository.dart';
 import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR');
+  // Sans connexion, la session enregistrée est gardée et l'appli s'ouvre sur les données enregistrées.
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
   runApp(const AppliGdc());
 }
@@ -51,16 +53,33 @@ class _AuthGateState extends State<AuthGate> {
   void initState() {
     super.initState();
     _reload();
-    Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+    Supabase.instance.client.auth.onAuthStateChange.listen((state) {
+      if (state.event == AuthChangeEvent.signedOut) Offline.clearLastProfile();
       if (mounted) setState(_reload);
-    });
+    }, onError: (_) {});
   }
 
   void _reload() => _profile = Repository.instance.currentProfile();
 
   @override
   Widget build(BuildContext context) {
-    if (Supabase.instance.client.auth.currentSession == null) return const AuthScreen();
+    if (Supabase.instance.client.auth.currentSession == null) {
+      // Pas de session active : soit déconnecté, soit hors connexion (la session n'a pas pu être rafraîchie).
+      return FutureBuilder<Map<String, dynamic>?>(
+        future: Offline.lastProfile(),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          final row = snap.data;
+          if (row == null) return const AuthScreen();
+          final profile = Profile.fromMap(row);
+          if (!profile.isApproved) return const AuthScreen();
+          Offline.userId = profile.id;
+          return HomeScreen(profile: profile);
+        },
+      );
+    }
     return FutureBuilder<Profile?>(
       future: _profile,
       builder: (context, snap) {

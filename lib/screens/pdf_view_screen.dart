@@ -1,11 +1,8 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../services/file_store.dart';
 import '../services/repository.dart';
+import '../widgets/pdf_pages_view.dart';
 import 'concert_screen.dart';
 
 /// Affiche un PDF stocké (ex. un livret) avec un bouton pour le télécharger ou le partager.
@@ -21,8 +18,7 @@ class PdfViewScreen extends StatefulWidget {
 }
 
 class _PdfViewScreenState extends State<PdfViewScreen> {
-  late final Future<Uint8List> _bytes = FileStore.instance.load(widget.bucket, widget.path);
-  final _viewer = GlobalKey<SfPdfViewerState>();
+  final _viewer = GlobalKey<PdfPagesViewState>();
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +36,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
           IconButton(
             tooltip: 'Sommaire',
             icon: const Icon(Icons.toc),
-            onPressed: () => _viewer.currentState?.openBookmarkView(),
+            onPressed: () => _viewer.currentState?.openOutline(),
           ),
           IconButton(
             tooltip: 'Télécharger / partager',
@@ -50,14 +46,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<Uint8List>(
-        future: _bytes,
-        builder: (context, snap) => snap.hasError
-            ? Center(child: Text('Impossible d\'ouvrir le fichier : ${snap.error}'))
-            : snap.hasData
-                ? SfPdfViewer.memory(snap.data!, key: _viewer)
-                : const Center(child: CircularProgressIndicator()),
-      ),
+      body: PdfPagesView(key: _viewer, bucket: widget.bucket, path: widget.path),
     );
   }
 }

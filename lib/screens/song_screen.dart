@@ -1,12 +1,10 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../models.dart';
 import '../services/file_store.dart';
+import '../widgets/pdf_pages_view.dart';
 import '../services/repository.dart';
 import '../theme.dart';
 import '../widgets/audio_player_bar.dart';
@@ -38,7 +36,7 @@ class _SongScreenState extends State<SongScreen> {
   final _repo = Repository.instance;
   YoutubePlayerController? _youtube;
   Future<String>? _audioUrl;
-  Future<Uint8List>? _pdf;
+  bool _hasPdf = false;
   _Source? _source;
   bool _mediaVisible = true;
   // Mode « paroles seules » : choisi à la main, ou automatique en paysage sur téléphone.
@@ -47,6 +45,18 @@ class _SongScreenState extends State<SongScreen> {
 
   Future<String> _sign(String bucket, String path) =>
       (widget.signUrl ?? _repo.signedUrl)(bucket, path);
+
+  /// Audio gardé sur l'appareil (lisible hors connexion), sinon lien en ligne.
+  Future<String> _audioSource(String path) async {
+    if (widget.signUrl == null) {
+      try {
+        final bytes = await FileStore.instance.load(Repository.audioBucket, path);
+        final local = await localUrl(bytes, audioContentType(path.split('.').last));
+        if (local != null) return local;
+      } catch (_) {}
+    }
+    return _sign(Repository.audioBucket, path);
+  }
 
   @override
   void initState() {
@@ -62,11 +72,11 @@ class _SongScreenState extends State<SongScreen> {
       _source = _Source.youtube;
     }
     if (song.audioPath != null) {
-      _audioUrl = _sign(Repository.audioBucket, song.audioPath!);
+      _audioUrl = _audioSource(song.audioPath!);
       _source ??= _Source.audio;
     }
     if (song.lyricsPdfPath != null) {
-      _pdf = FileStore.instance.load(Repository.lyricsBucket, song.lyricsPdfPath!);
+      _hasPdf = true;
     }
   }
 
@@ -110,7 +120,7 @@ class _SongScreenState extends State<SongScreen> {
                     icon: Icon(_mediaVisible ? Icons.expand_less_rounded : Icons.expand_more_rounded),
                     onPressed: () => setState(() => _mediaVisible = !_mediaVisible),
                   ),
-                if (_pdf != null)
+                if (_hasPdf)
                   IconButton(
                     tooltip: 'Paroles en plein écran',
                     icon: const Icon(Icons.fullscreen_rounded),
@@ -213,21 +223,14 @@ class _SongScreenState extends State<SongScreen> {
       clipBehavior: Clip.antiAlias,
       shape: focus ? const RoundedRectangleBorder() : null,
       margin: EdgeInsets.zero,
-      child: _pdf == null
+      child: !_hasPdf
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text('Pas encore de PDF de paroles pour ce chant.', textAlign: TextAlign.center),
               ),
             )
-          : FutureBuilder<Uint8List>(
-              future: _pdf,
-              builder: (context, snap) => snap.hasError
-                  ? Center(child: Text('Impossible d\'ouvrir les paroles : ${snap.error}'))
-                  : snap.hasData
-                      ? SfPdfViewer.memory(snap.data!)
-                      : const Center(child: CircularProgressIndicator()),
-            ),
+          : PdfPagesView(bucket: Repository.lyricsBucket, path: widget.song.lyricsPdfPath!),
     );
 
     // En plein écran, le lecteur reste monté (caché) pour que la musique continue.
