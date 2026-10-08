@@ -2,6 +2,7 @@
 // puis ouvrir index.html?screen=home|songs|agenda|booklets|members|login&theme=dark (&view=...)
 import 'package:appli_gdc/models.dart';
 import 'package:appli_gdc/services/agenda.dart';
+import 'package:appli_gdc/services/file_store.dart';
 import 'package:appli_gdc/screens/auth_screen.dart';
 import 'package:appli_gdc/screens/home_screen.dart';
 import 'package:appli_gdc/screens/members_screen.dart';
@@ -9,6 +10,8 @@ import 'package:appli_gdc/screens/song_screen.dart';
 import 'package:appli_gdc/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+// ignore: depend_on_referenced_packages
+import 'package:http/http.dart' as http;
 import 'package:intl/date_symbol_data_local.dart';
 
 const _categories = [
@@ -64,6 +67,7 @@ final _profiles = [
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FileStore.instance.download = (_, __) async => (await http.get(Uri.base.resolve('sample.pdf'))).bodyBytes;
   await initializeDateFormatting('fr_FR');
   final q = Uri.base.queryParameters;
   final screen = q['screen'] ?? 'home';
@@ -99,7 +103,6 @@ Future<void> main() async {
             profile: q['as'] == 'membre' ? _profiles[2] : _profiles.first,
             initialTab: tab,
             load: () async => LibraryData(_categories, _songs, _booklets),
-            signUrl: (_, __) async => Uri.base.resolve('sample.pdf').toString(),
             agenda: _DemoAgenda(q['as'] == 'membre' ? 'p3' : null),
             membersPanel: MembersPanel(load: () async => _profiles, setRole: (_, __) async {}),
           ),

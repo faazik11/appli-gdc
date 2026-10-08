@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
 import '../services/agenda.dart';
+import '../services/file_store.dart';
 import '../services/repository.dart';
 import '../theme.dart';
 import '../widgets/announcements.dart';
@@ -45,8 +46,6 @@ class HomeScreen extends StatefulWidget {
   final AgendaBackend? agenda;
   final int initialTab;
 
-  /// Pour la démo : liens vers des fichiers locaux au lieu des liens signés.
-  final Future<String> Function(String bucket, String path)? signUrl;
 
   const HomeScreen({
     super.key,
@@ -55,7 +54,6 @@ class HomeScreen extends StatefulWidget {
     this.membersPanel,
     this.agenda,
     this.initialTab = 0,
-    this.signUrl,
   });
 
   @override
@@ -135,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openConcert(Booklet b) {
     if (b.pdfPath == null) return;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ConcertScreen(title: b.title, bucket: Repository.bookletsBucket, path: b.pdfPath!, signUrl: widget.signUrl),
+      builder: (_) => ConcertScreen(title: b.title, bucket: Repository.bookletsBucket, path: b.pdfPath!),
     ));
   }
 
@@ -195,6 +193,59 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  /// Télécharge tous les livrets et toutes les paroles pour qu'ils s'ouvrent sans attendre.
+  Future<void> _downloadAll() async {
+    final files = [
+      for (final b in _data.booklets)
+        if (b.pdfPath != null) (Repository.bookletsBucket, b.pdfPath!),
+      for (final s in _data.songs)
+        if (s.lyricsPdfPath != null) (Repository.lyricsBucket, s.lyricsPdfPath!),
+    ];
+    final progress = ValueNotifier(0);
+    var failed = 0;
+    var cancelled = false;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Téléchargement'),
+        content: ValueListenableBuilder<int>(
+          valueListenable: progress,
+          builder: (_, n, __) => Column(mainAxisSize: MainAxisSize.min, children: [
+            LinearProgressIndicator(value: files.isEmpty ? 1 : n / files.length),
+            const SizedBox(height: 12),
+            Text('$n / ${files.length} fichiers'),
+          ]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              cancelled = true;
+              Navigator.pop(ctx);
+            },
+            child: const Text('Arrêter'),
+          ),
+        ],
+      ),
+    );
+    for (final (bucket, path) in files) {
+      if (cancelled) return;
+      try {
+        await FileStore.instance.load(bucket, path);
+      } catch (_) {
+        failed++;
+      }
+      progress.value++;
+    }
+    if (!mounted || cancelled) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(failed == 0
+          ? 'Les ${files.length} fichiers sont gardés sur cet appareil.'
+          : '${files.length - failed} fichiers gardés, $failed n\'ont pas pu être téléchargés.'),
+    ));
   }
 
   void _showCategory(int? categoryId) => setState(() {
@@ -656,10 +707,22 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Text('Livrets', style: theme.textTheme.headlineLarge),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text('Les programmes de vos prestations',
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ),
+            if (_data.booklets.any((b) => b.pdfPath != null) || _data.songs.any((s) => s.hasPdf))
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.download_for_offline_rounded),
+                    label: const Text('Tout garder sur cet appareil'),
+                    onPressed: _downloadAll,
+                  ),
+                ),
+              ),
             if (_data.booklets.isEmpty)
               EmptyState(
                 icon: Icons.auto_stories_rounded,

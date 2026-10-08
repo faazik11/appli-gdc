@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/file_store.dart';
 import '../services/repository.dart';
 import 'concert_screen.dart';
 
@@ -18,7 +21,7 @@ class PdfViewScreen extends StatefulWidget {
 }
 
 class _PdfViewScreenState extends State<PdfViewScreen> {
-  late final Future<String> _url = Repository.instance.signedUrl(widget.bucket, widget.path);
+  late final Future<Uint8List> _bytes = FileStore.instance.load(widget.bucket, widget.path);
   final _viewer = GlobalKey<SfPdfViewerState>();
 
   @override
@@ -42,16 +45,18 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
           IconButton(
             tooltip: 'Télécharger / partager',
             icon: const Icon(Icons.download),
-            onPressed: () async =>
-                launchUrl(Uri.parse(await _url), mode: LaunchMode.externalApplication),
+            onPressed: () async => launchUrl(Uri.parse(await Repository.instance.signedUrl(widget.bucket, widget.path)),
+                mode: LaunchMode.externalApplication),
           ),
         ],
       ),
-      body: FutureBuilder<String>(
-        future: _url,
-        builder: (context, snap) => snap.hasData
-            ? SfPdfViewer.network(snap.data!, key: _viewer)
-            : const Center(child: CircularProgressIndicator()),
+      body: FutureBuilder<Uint8List>(
+        future: _bytes,
+        builder: (context, snap) => snap.hasError
+            ? Center(child: Text('Impossible d\'ouvrir le fichier : ${snap.error}'))
+            : snap.hasData
+                ? SfPdfViewer.memory(snap.data!, key: _viewer)
+                : const Center(child: CircularProgressIndicator()),
       ),
     );
   }

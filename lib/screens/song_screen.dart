@@ -1,9 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../models.dart';
+import '../services/file_store.dart';
 import '../services/repository.dart';
 import '../theme.dart';
 import '../widgets/audio_player_bar.dart';
@@ -35,7 +38,7 @@ class _SongScreenState extends State<SongScreen> {
   final _repo = Repository.instance;
   YoutubePlayerController? _youtube;
   Future<String>? _audioUrl;
-  Future<String>? _pdfUrl;
+  Future<Uint8List>? _pdf;
   _Source? _source;
   bool _mediaVisible = true;
   // Mode « paroles seules » : choisi à la main, ou automatique en paysage sur téléphone.
@@ -63,7 +66,7 @@ class _SongScreenState extends State<SongScreen> {
       _source ??= _Source.audio;
     }
     if (song.lyricsPdfPath != null) {
-      _pdfUrl = _sign(Repository.lyricsBucket, song.lyricsPdfPath!);
+      _pdf = FileStore.instance.load(Repository.lyricsBucket, song.lyricsPdfPath!);
     }
   }
 
@@ -107,7 +110,7 @@ class _SongScreenState extends State<SongScreen> {
                     icon: Icon(_mediaVisible ? Icons.expand_less_rounded : Icons.expand_more_rounded),
                     onPressed: () => setState(() => _mediaVisible = !_mediaVisible),
                   ),
-                if (_pdfUrl != null)
+                if (_pdf != null)
                   IconButton(
                     tooltip: 'Paroles en plein écran',
                     icon: const Icon(Icons.fullscreen_rounded),
@@ -210,17 +213,20 @@ class _SongScreenState extends State<SongScreen> {
       clipBehavior: Clip.antiAlias,
       shape: focus ? const RoundedRectangleBorder() : null,
       margin: EdgeInsets.zero,
-      child: _pdfUrl == null
+      child: _pdf == null
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text('Pas encore de PDF de paroles pour ce chant.', textAlign: TextAlign.center),
               ),
             )
-          : FutureBuilder<String>(
-              future: _pdfUrl,
-              builder: (context, snap) =>
-                  snap.hasData ? SfPdfViewer.network(snap.data!) : const Center(child: CircularProgressIndicator()),
+          : FutureBuilder<Uint8List>(
+              future: _pdf,
+              builder: (context, snap) => snap.hasError
+                  ? Center(child: Text('Impossible d\'ouvrir les paroles : ${snap.error}'))
+                  : snap.hasData
+                      ? SfPdfViewer.memory(snap.data!)
+                      : const Center(child: CircularProgressIndicator()),
             ),
     );
 
