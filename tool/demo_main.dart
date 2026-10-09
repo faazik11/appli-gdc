@@ -77,7 +77,7 @@ Future<void> main() async {
   await initializeDateFormatting('fr_FR');
   final q = Uri.base.queryParameters;
   final screen = q['screen'] ?? 'home';
-  final tab = const {'home': 0, 'songs': 1, 'agenda': 2, 'booklets': 3, 'members': 4}[screen] ?? 0;
+  final tab = const {'home': 0, 'songs': 1, 'agenda': 2, 'repetes': 3, 'booklets': 4, 'materiel': 5, 'members': 6}[screen] ?? 0;
   runApp(MaterialApp(
     debugShowCheckedModeBanner: false,
     locale: const Locale('fr', 'FR'),

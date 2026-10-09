@@ -43,7 +43,7 @@ Future<LibraryData> _loadFromSupabase() async {
   return LibraryData(r[0] as List<Category>, r[1] as List<Song>, r[2] as List<Booklet>);
 }
 
-enum _Tab { home, songs, agenda, booklets, members }
+enum _Tab { home, songs, agenda, recordings, booklets, inventory, members }
 
 class HomeScreen extends StatefulWidget {
   final Profile profile;
@@ -107,7 +107,15 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _canEdit => widget.profile.isEditor;
   List<Category> get _songCategories => _data.categories.where((c) => !c.isBooklets).toList();
   Category? _categoryOf(Song s) => _data.categories.where((c) => c.id == s.categoryId).firstOrNull;
-  List<_Tab> get _tabs => [_Tab.home, _Tab.songs, _Tab.agenda, _Tab.booklets, if (widget.profile.isAdmin) _Tab.members];
+  List<_Tab> get _tabs => [
+        _Tab.home,
+        _Tab.songs,
+        _Tab.agenda,
+        _Tab.recordings,
+        _Tab.booklets,
+        _Tab.inventory,
+        if (widget.profile.isAdmin) _Tab.members,
+      ];
 
   // ---------- Navigation vers les autres écrans ----------
 
@@ -135,12 +143,6 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
     if (saved == true) _load();
   }
-
-  void _openRecordings({bool record = false}) => Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => RecordingsScreen(backend: _work, agenda: _agenda, canEdit: _canEdit, startRecording: record)));
-
-  void _openInventory() => Navigator.of(context)
-      .push(MaterialPageRoute(builder: (_) => InventoryScreen(backend: _work, canEdit: _canEdit)));
 
   void _openTools(int tab) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => ToolsScreen(initialTab: tab)));
@@ -298,6 +300,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _Tab.songs => _songsTab(),
                 _Tab.agenda => AgendaPanel(profile: widget.profile, backend: _agenda, links: _links),
                 _Tab.booklets => _bookletsTab(wide),
+                _Tab.recordings => RecordingsScreen(backend: _work, agenda: _agenda, canEdit: _canEdit),
+                _Tab.inventory => InventoryScreen(backend: _work, canEdit: _canEdit),
                 _Tab.members => widget.membersPanel ?? const MembersPanel(),
               };
 
@@ -308,6 +312,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _Tab.songs => (Icons.library_music_outlined, Icons.library_music_rounded, 'Chants'),
           _Tab.agenda => (Icons.event_outlined, Icons.event_rounded, 'Agenda'),
           _Tab.booklets => (Icons.menu_book_outlined, Icons.menu_book_rounded, 'Livrets'),
+          _Tab.recordings => (Icons.mic_none_rounded, Icons.mic_rounded, 'Répètes'),
+          _Tab.inventory => (Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'Inventaire'),
           _Tab.members => (Icons.groups_outlined, Icons.groups_rounded, 'Membres'),
         },
     ];
@@ -367,16 +373,25 @@ class _HomeScreenState extends State<HomeScreen> {
         ]),
       );
     }
+    // Beaucoup d'onglets : noms en plus petit pour qu'ils tiennent tous.
+    final small = destinations.length > 5;
     return Scaffold(
       floatingActionButton: fab,
       body: SafeArea(bottom: false, child: page),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: select,
-        destinations: [
-          for (final d in destinations)
-            NavigationDestination(icon: Icon(d.$1), selectedIcon: Icon(d.$2), label: d.$3),
-        ],
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarTheme.of(context).copyWith(
+          labelTextStyle: small
+              ? WidgetStatePropertyAll(Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 10.5, letterSpacing: 0))
+              : null,
+        ),
+        child: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: select,
+          destinations: [
+            for (final d in destinations)
+              NavigationDestination(icon: Icon(d.$1), selectedIcon: Icon(d.$2), label: d.$3),
+          ],
+        ),
       ),
     );
   }
@@ -486,17 +501,14 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Raccourcis compacts : outils pour tous, créations du chef de chœur regroupées dans « Créer ».
   Widget _shortcuts() {
     final tint = Theme.of(context).colorScheme.tertiary;
-    Widget chip(IconData icon, String label, VoidCallback onTap, {Color? color}) => ActionChip(
-          avatar: Icon(icon, size: 18, color: color ?? tint),
+    Widget chip(IconData icon, String label, VoidCallback onTap) => ActionChip(
+          avatar: Icon(icon, size: 18, color: tint),
           label: Text(label),
           onPressed: onTap,
         );
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Wrap(spacing: 8, runSpacing: 8, children: [
-        if (_canEdit) chip(Icons.mic_rounded, 'Enregistrer', () => _openRecordings(record: true), color: const Color(0xFFD32F2F)),
-        chip(Icons.headphones_rounded, 'Répétitions', _openRecordings),
-        chip(Icons.inventory_2_outlined, 'Inventaire', _openInventory),
         chip(Icons.tune_rounded, 'Diapason', () => _openTools(0)),
         chip(Icons.timer_outlined, 'Métronome', () => _openTools(1)),
         if (_canEdit)
