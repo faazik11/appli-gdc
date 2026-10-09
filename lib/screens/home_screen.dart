@@ -266,11 +266,6 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
-  void _showCategory(int? categoryId) => setState(() {
-        _categoryFilter = categoryId;
-        _tab = _Tab.songs;
-      });
-
   // ---------- Mise en page ----------
 
   @override
@@ -418,35 +413,39 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Bandeau compact : logo, bonjour et date, compte.
   Widget _hero() {
     final firstName = widget.profile.fullName.trim().split(' ').first;
     final today = DateFormat('EEEE d MMMM', 'fr_FR').format(DateTime.now());
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: const BoxDecoration(
         gradient: AppColors.heroGradient,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
       child: Stack(children: [
         Positioned(
-          right: -30,
-          top: -20,
-          child: Icon(Icons.music_note_rounded, size: 200, color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        Positioned(
-          right: 90,
-          bottom: -30,
-          child: Icon(Icons.queue_music_rounded, size: 120, color: AppColors.gold.withValues(alpha: 0.12)),
+          right: 70,
+          top: -24,
+          child: Icon(Icons.music_note_rounded, size: 110, color: Colors.white.withValues(alpha: 0.06)),
         ),
         ContentWidth(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 18, 14, 22),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                const AppLogo(size: 40),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 12, 14),
+              child: Row(children: [
+                const AppLogo(size: 36),
                 const SizedBox(width: 12),
-                const Expanded(
-                  child: Text('Groupe de Chant Narbonne',
-                      style: TextStyle(fontFamily: 'Poppins', color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16, letterSpacing: 0.5)),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(firstName.isEmpty ? 'Bonjour !' : 'Bonjour $firstName',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontFamily: 'DMSerifDisplay', color: Colors.white, fontSize: 22, height: 1.15)),
+                    Text(_capitalize(today),
+                        style: TextStyle(fontFamily: 'Poppins', color: AppColors.goldLight.withValues(alpha: 0.95), fontSize: 12.5)),
+                  ]),
                 ),
                 PopupMenuButton<String>(
                   tooltip: 'Mon compte',
@@ -457,40 +456,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     PopupMenuItem(enabled: false, child: Text('${widget.profile.fullName} · ${roleLabel(widget.profile.role)}')),
                     const PopupMenuItem(value: 'logout', child: Text('Se déconnecter')),
                   ],
-                  child: Avatar(widget.profile.fullName, radius: 20),
+                  child: Avatar(widget.profile.fullName, radius: 18),
                 ),
               ]),
-              const SizedBox(height: 18),
-              Text(_capitalize(today),
-                  style: TextStyle(fontFamily: 'Poppins', color: AppColors.goldLight.withValues(alpha: 0.95), fontSize: 13, letterSpacing: 0.4)),
-              const SizedBox(height: 4),
-              Text(firstName.isEmpty ? 'Bonjour !' : 'Bonjour $firstName',
-                  style: const TextStyle(fontFamily: 'DMSerifDisplay', color: Colors.white, fontSize: 34, height: 1.1)),
-              const SizedBox(height: 16),
-              _searchLauncher(),
-            ]),
+            ),
           ),
         ),
       ]),
     );
   }
-
-  Widget _searchLauncher() => Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _showCategory(null),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(children: [
-              Icon(Icons.search_rounded, color: AppColors.aubergine),
-              SizedBox(width: 10),
-              Text('Rechercher un chant…', style: TextStyle(fontFamily: 'Poppins', color: Color(0xFF6E6578))),
-            ]),
-          ),
-        ),
-      );
 
   /// Raccourcis compacts : outils pour tous, actions du chef de chœur en plus.
   Widget _shortcuts() {
