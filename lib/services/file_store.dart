@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import '../platform/device_files.dart';
 import 'repository.dart';
 
-export '../platform/device_files.dart' show PageRenderer, openPageRenderer, localUrl, OutlineEntry;
+export '../platform/device_files.dart' show PageRenderer, openPageRenderer, localUrl, OutlineEntry, shrinkImage;
 
 /// Fichiers (paroles, livrets) téléchargés une fois puis gardés sur l'appareil.
 /// Le chemin d'un fichier change à chaque nouveau dépôt, donc une copie gardée reste à jour.
@@ -36,6 +36,12 @@ class FileStore {
         _pending.remove(key);
       }
     }();
+  }
+
+  /// Garde directement un fichier qu'on vient d'envoyer (pas besoin de le retélécharger).
+  Future<void> keep(String bucket, String path, Uint8List bytes) async {
+    _remember(_key(bucket, path), bytes);
+    await devicePut(_key(bucket, path), bytes);
   }
 
   /// Vrai si le fichier est déjà sur l'appareil.

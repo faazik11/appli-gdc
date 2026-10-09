@@ -290,3 +290,73 @@ class Announcement {
         createdAt: DateTime.parse(m['created_at'] as String).toLocal(),
       );
 }
+
+/// Catégorie de matériel créée par le chef de chœur (Enceintes, Micros…).
+class EquipmentCategory {
+  final String id;
+  final String name;
+
+  const EquipmentCategory({required this.id, required this.name});
+
+  factory EquipmentCategory.fromMap(Map<String, dynamic> m) =>
+      EquipmentCategory(id: m['id'] as String, name: m['name'] as String);
+}
+
+/// Fiche produit de l'inventaire du local.
+class EquipmentItem {
+  final String id;
+  final String name;
+  final String? categoryId;
+  final int quantity;
+  final String? notes;
+  final String? photoPath;
+
+  const EquipmentItem({
+    required this.id,
+    required this.name,
+    this.categoryId,
+    this.quantity = 1,
+    this.notes,
+    this.photoPath,
+  });
+
+  factory EquipmentItem.fromMap(Map<String, dynamic> m) => EquipmentItem(
+        id: m['id'] as String,
+        name: m['name'] as String,
+        categoryId: m['category_id'] as String?,
+        quantity: (m['quantity'] as num?)?.toInt() ?? 1,
+        notes: m['notes'] as String?,
+        photoPath: m['photo_path'] as String?,
+      );
+}
+
+/// Enregistrement d'une répétition, daté automatiquement, avec les points abordés.
+class Recording {
+  final String id;
+  final DateTime recordedAt;
+  final String? eventId;
+  final String? title;
+  final String? notes;
+  final String audioPath;
+  final int? durationSeconds;
+
+  const Recording({
+    required this.id,
+    required this.recordedAt,
+    this.eventId,
+    this.title,
+    this.notes,
+    required this.audioPath,
+    this.durationSeconds,
+  });
+
+  factory Recording.fromMap(Map<String, dynamic> m) => Recording(
+        id: m['id'] as String,
+        recordedAt: DateTime.parse(m['recorded_at'] as String).toLocal(),
+        eventId: m['event_id'] as String?,
+        title: m['title'] as String?,
+        notes: m['notes'] as String?,
+        audioPath: m['audio_path'] as String,
+        durationSeconds: (m['duration_seconds'] as num?)?.toInt(),
+      );
+}

@@ -27,6 +27,15 @@ Future<void> devicePut(String key, Uint8List bytes) async {
   } catch (_) {}
 }
 
+Future<void> deviceDelete(String key) async {
+  try {
+    final f = await _file(key);
+    if (await f.exists()) await f.delete();
+  } catch (_) {}
+}
+
+Future<Uint8List> shrinkImage(Uint8List bytes, int maxSide) async => bytes;
+
 /// Adresse locale pour lire des octets (audio) sans les retélécharger.
 Future<String?> localUrl(Uint8List bytes, String mimeType) async {
   try {

@@ -5,7 +5,10 @@ import 'package:just_audio/just_audio.dart';
 class AudioPlayerBar extends StatefulWidget {
   final String url;
 
-  const AudioPlayerBar({super.key, required this.url});
+  /// Durée connue d'avance (certains enregistrements ne l'indiquent pas eux-mêmes).
+  final Duration? duration;
+
+  const AudioPlayerBar({super.key, required this.url, this.duration});
 
   @override
   State<AudioPlayerBar> createState() => _AudioPlayerBarState();
@@ -30,12 +33,20 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
     super.dispose();
   }
 
-  String _fmt(Duration d) =>
-      '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+  String _fmt(Duration d) {
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    if (d.inHours == 0) return '${d.inMinutes}:$s';
+    return '${d.inHours}:${(d.inMinutes % 60).toString().padLeft(2, '0')}:$s';
+  }
+
+  Duration get _total {
+    final d = _player.duration;
+    return (d == null || d == Duration.zero) ? (widget.duration ?? Duration.zero) : d;
+  }
 
   void _seekBy(int seconds) {
     final target = _player.position + Duration(seconds: seconds);
-    final max = _player.duration ?? Duration.zero;
+    final max = _total;
     _player.seek(target < Duration.zero ? Duration.zero : (target > max ? max : target));
   }
 
@@ -51,7 +62,7 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
             stream: _player.positionStream,
             builder: (context, snap) {
               final pos = snap.data ?? Duration.zero;
-              final total = _player.duration ?? Duration.zero;
+              final total = _total;
               return Row(children: [
                 Text(_fmt(pos)),
                 Expanded(

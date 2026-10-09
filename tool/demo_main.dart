@@ -3,8 +3,12 @@
 import 'package:appli_gdc/models.dart';
 import 'package:appli_gdc/services/agenda.dart';
 import 'package:appli_gdc/services/file_store.dart';
+import 'package:appli_gdc/services/workshop.dart';
+import 'dart:typed_data';
 import 'package:appli_gdc/screens/auth_screen.dart';
 import 'package:appli_gdc/screens/home_screen.dart';
+import 'package:appli_gdc/screens/inventory_screen.dart';
+import 'package:appli_gdc/screens/recordings_screen.dart';
 import 'package:appli_gdc/screens/members_screen.dart';
 import 'package:appli_gdc/screens/song_screen.dart';
 import 'package:appli_gdc/theme.dart';
@@ -23,7 +27,8 @@ const _categories = [
 ];
 
 final _now = DateTime.now();
-Song _song(String id, String title, int cat, {bool pdf = true, bool yt = false, bool audio = false, List<String> tags = const [], int ago = 1}) =>
+Song _song(String id, String title, int cat,
+        {bool pdf = true, bool yt = false, bool audio = false, List<String> tags = const [], int ago = 1}) =>
     Song(
       id: id,
       title: title,
@@ -67,7 +72,8 @@ final _profiles = [
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  FileStore.instance.download = (_, __) async => (await http.get(Uri.base.resolve('sample.pdf'))).bodyBytes;
+  FileStore.instance.download =
+      (_, path) async => (await http.get(Uri.base.resolve(path == 'x' ? 'sample.pdf' : path))).bodyBytes;
   await initializeDateFormatting('fr_FR');
   final q = Uri.base.queryParameters;
   final screen = q['screen'] ?? 'home';
@@ -80,32 +86,39 @@ Future<void> main() async {
     theme: buildTheme(Brightness.light),
     darkTheme: buildTheme(Brightness.dark),
     themeMode: q['theme'] == 'dark' ? ThemeMode.dark : ThemeMode.light,
-    home: screen == 'login'
-        ? const AuthScreen()
-        : screen == 'song'
-            ? SongScreen(
-                song: Song(
-                  id: '1',
-                  title: 'Ave Maria',
-                  categoryId: 1,
-                  lyricsPdfPath: 'sample.pdf',
-                  youtubeUrl: q['yt'] == '1' ? 'https://www.youtube.com/watch?v=2bosouX_d8Y' : null,
-                  audioPath: 'audio.mp3',
-                  tags: const ['Messe'],
-                  notes: 'Attention à l\'entrée des altos à la mesure 12.',
-                ),
-                category: _categories.first,
-                canEdit: true,
-                onEdit: () {},
-                signUrl: (_, path) async => Uri.base.resolve(path).toString(),
-              )
-            : HomeScreen(
-            profile: q['as'] == 'membre' ? _profiles[2] : _profiles.first,
-            initialTab: tab,
-            load: () async => LibraryData(_categories, _songs, _booklets),
-            agenda: _DemoAgenda(q['as'] == 'membre' ? 'p3' : null),
-            membersPanel: MembersPanel(load: () async => _profiles, setRole: (_, __) async {}),
-          ),
+    home: screen == 'inventory'
+        ? InventoryScreen(backend: _work, canEdit: q['as'] != 'membre')
+        : screen == 'recordings'
+            ? RecordingsScreen(backend: _work, agenda: _DemoAgenda(null), canEdit: q['as'] != 'membre')
+            : screen == 'recorder'
+                ? RecorderScreen(backend: _work, agenda: _DemoAgenda(null))
+                : screen == 'login'
+                    ? const AuthScreen()
+                    : screen == 'song'
+                        ? SongScreen(
+                            song: Song(
+                              id: '1',
+                              title: 'Ave Maria',
+                              categoryId: 1,
+                              lyricsPdfPath: 'sample.pdf',
+                              youtubeUrl: q['yt'] == '1' ? 'https://www.youtube.com/watch?v=2bosouX_d8Y' : null,
+                              audioPath: 'audio.mp3',
+                              tags: const ['Messe'],
+                              notes: 'Attention à l\'entrée des altos à la mesure 12.',
+                            ),
+                            category: _categories.first,
+                            canEdit: true,
+                            onEdit: () {},
+                            signUrl: (_, path) async => Uri.base.resolve(path).toString(),
+                          )
+                        : HomeScreen(
+                            profile: q['as'] == 'membre' ? _profiles[2] : _profiles.first,
+                            initialTab: tab,
+                            load: () async => LibraryData(_categories, _songs, _booklets),
+                            agenda: _DemoAgenda(q['as'] == 'membre' ? 'p3' : null),
+                            work: _work,
+                            membersPanel: MembersPanel(load: () async => _profiles, setRole: (_, __) async {}),
+                          ),
   ));
 }
 
@@ -223,23 +236,51 @@ class _DemoAgenda implements AgendaBackend {
   Future<List<Profile>> members() async => _profiles.where((p) => p.isApproved).toList();
 
   @override
-  Future<void> saveEvent({String? id, required EventKind kind, String? title, required DateTime startsAt, DateTime? endsAt, String? location, String? notes, List<String> songIds = const [], String? bookletId}) async {
+  Future<void> saveEvent(
+      {String? id,
+      required EventKind kind,
+      String? title,
+      required DateTime startsAt,
+      DateTime? endsAt,
+      String? location,
+      String? notes,
+      List<String> songIds = const [],
+      String? bookletId}) async {
     final old = _events.where((e) => e.id == id).firstOrNull;
     _events.removeWhere((e) => e.id == id);
-    _events.add(ChoirEvent(id: id ?? 'n${_events.length}', kind: kind, title: title, startsAt: startsAt, endsAt: endsAt, location: location, notes: notes, songIds: songIds, bookletId: bookletId, participants: old?.participants ?? const []));
+    _events.add(ChoirEvent(
+        id: id ?? 'n${_events.length}',
+        kind: kind,
+        title: title,
+        startsAt: startsAt,
+        endsAt: endsAt,
+        location: location,
+        notes: notes,
+        songIds: songIds,
+        bookletId: bookletId,
+        participants: old?.participants ?? const []));
   }
 
   final _announcements = [
-    Announcement(id: 'a1', body: 'Samedi on termine à 17h précises : la salle est réservée après nous. Pensez à apporter vos livrets du mariage !', authorId: 'p2', createdAt: DateTime.now().subtract(const Duration(hours: 3))),
-    Announcement(id: 'a2', body: 'Bienvenue à Lina qui rejoint les altos 🎶', authorId: 'p1', createdAt: DateTime.now().subtract(const Duration(days: 2))),
+    Announcement(
+        id: 'a1',
+        body:
+            'Samedi on termine à 17h précises : la salle est réservée après nous. Pensez à apporter vos livrets du mariage !',
+        authorId: 'p2',
+        createdAt: DateTime.now().subtract(const Duration(hours: 3))),
+    Announcement(
+        id: 'a2',
+        body: 'Bienvenue à Lina qui rejoint les altos 🎶',
+        authorId: 'p1',
+        createdAt: DateTime.now().subtract(const Duration(days: 2))),
   ];
 
   @override
   Future<List<Announcement>> announcements() async => [..._announcements];
 
   @override
-  Future<void> postAnnouncement(String body) async =>
-      _announcements.insert(0, Announcement(id: 'a${_announcements.length + 1}', body: body, authorId: 'p1', createdAt: DateTime.now()));
+  Future<void> postAnnouncement(String body) async => _announcements.insert(
+      0, Announcement(id: 'a${_announcements.length + 1}', body: body, authorId: 'p1', createdAt: DateTime.now()));
 
   @override
   Future<void> deleteAnnouncement(String id) async => _announcements.removeWhere((a) => a.id == id);
@@ -261,4 +302,136 @@ class _DemoAgenda implements AgendaBackend {
   @override
   Future<void> setAttended(String eventId, String profileId, bool? attended) async =>
       _update(eventId, profileId, (o) => Participant(profileId: profileId, response: o?.response, attended: attended));
+}
+
+final _work = _DemoWork();
+
+/// Inventaire et enregistrements en mémoire pour la démo.
+class _DemoWork implements WorkBackend {
+  final _cats = [
+    const EquipmentCategory(id: 'c1', name: 'Enceintes'),
+    const EquipmentCategory(id: 'c2', name: 'Micros'),
+    const EquipmentCategory(id: 'c3', name: 'Pieds & supports'),
+    const EquipmentCategory(id: 'c4', name: 'Table de mixage'),
+  ];
+  final _items = [
+    const EquipmentItem(
+        id: 'i1',
+        name: 'Enceinte JBL EON 715',
+        categoryId: 'c1',
+        quantity: 2,
+        notes: 'Housses dans la caisse bleue.',
+        photoPath: 'enceinte.jpg'),
+    const EquipmentItem(
+        id: 'i2', name: 'Enceinte de retour Yamaha', categoryId: 'c1', quantity: 1, photoPath: 'enceinte.jpg'),
+    const EquipmentItem(
+        id: 'i3',
+        name: 'Micro Shure SM58',
+        categoryId: 'c2',
+        quantity: 6,
+        notes: 'Un des micros grésille, à vérifier.',
+        photoPath: 'micro.jpg'),
+    const EquipmentItem(
+        id: 'i4',
+        name: 'Micro sans fil Sennheiser',
+        categoryId: 'c2',
+        quantity: 2,
+        notes: 'Piles AA.',
+        photoPath: 'micro.jpg'),
+    const EquipmentItem(id: 'i5', name: 'Pied de micro perche', categoryId: 'c3', quantity: 6, photoPath: 'pied.jpg'),
+    const EquipmentItem(id: 'i6', name: 'Table Yamaha MG10XU', categoryId: 'c4', quantity: 1, photoPath: 'table.jpg'),
+    const EquipmentItem(id: 'i7', name: 'Rallonge 10 m', quantity: 4),
+  ];
+  late final _recs = [
+    for (final (i, d) in [2, 5, 9, 12, 16, 33].indexed)
+      Recording(
+        id: 'r$i',
+        recordedAt: DateTime.now().subtract(Duration(days: d, hours: 1)),
+        audioPath: 'audio.mp3',
+        durationSeconds: 5400 + i * 620,
+        notes: i.isEven ? '• Hymne à l\'amour : entrée des altos mesure 12\n• Tala al badru : tempo du refrain' : null,
+      ),
+  ];
+
+  @override
+  Future<List<EquipmentCategory>> equipmentCategories() async => [..._cats];
+  @override
+  Future<EquipmentCategory> addEquipmentCategory(String name) async {
+    final c = EquipmentCategory(id: 'c${_cats.length + 1}', name: name);
+    _cats.add(c);
+    return c;
+  }
+
+  @override
+  Future<void> renameEquipmentCategory(String id, String name) async {
+    final i = _cats.indexWhere((c) => c.id == id);
+    _cats[i] = EquipmentCategory(id: id, name: name);
+  }
+
+  @override
+  Future<void> deleteEquipmentCategory(String id) async => _cats.removeWhere((c) => c.id == id);
+  @override
+  Future<List<EquipmentItem>> equipment() async => [..._items];
+  @override
+  Future<void> saveEquipment(
+      {String? id,
+      required String name,
+      String? categoryId,
+      required int quantity,
+      String? notes,
+      String? photoPath}) async {
+    final item = EquipmentItem(
+        id: id ?? 'i${_items.length + 10}',
+        name: name,
+        categoryId: categoryId,
+        quantity: quantity,
+        notes: notes,
+        photoPath: photoPath);
+    final i = _items.indexWhere((e) => e.id == id);
+    i < 0 ? _items.add(item) : _items[i] = item;
+  }
+
+  @override
+  Future<void> deleteEquipment(EquipmentItem item) async => _items.removeWhere((e) => e.id == item.id);
+  @override
+  Future<List<Recording>> recordings() async => [..._recs];
+  @override
+  Future<void> saveRecording(
+          {required DateTime recordedAt,
+          String? eventId,
+          String? title,
+          String? notes,
+          required String audioPath,
+          int? durationSeconds}) async =>
+      _recs.insert(
+          0,
+          Recording(
+              id: 'r${_recs.length + 10}',
+              recordedAt: recordedAt,
+              eventId: eventId,
+              title: title,
+              notes: notes,
+              audioPath: audioPath,
+              durationSeconds: durationSeconds));
+  @override
+  Future<void> updateRecording(String id, {String? title, String? notes}) async {
+    final i = _recs.indexWhere((r) => r.id == id);
+    final r = _recs[i];
+    _recs[i] = Recording(
+        id: id,
+        recordedAt: r.recordedAt,
+        title: title,
+        notes: notes,
+        audioPath: r.audioPath,
+        durationSeconds: r.durationSeconds);
+  }
+
+  @override
+  Future<void> deleteRecording(Recording r) async => _recs.removeWhere((e) => e.id == r.id);
+  @override
+  Future<String> upload(String bucket, String fileName, Uint8List bytes, String contentType) async => 'local-$fileName';
+  @override
+  Future<void> deleteFile(String bucket, String path) async {}
+  @override
+  Future<String> audioUrl(String path) async => Uri.base.resolve('audio.mp3').toString();
 }

@@ -14,6 +14,8 @@ extension type _GdcFiles(JSObject _) implements JSObject {
   external JSPromise<JSUint8Array> render(int id, int index, int width);
   external void close(int id);
   external String objectUrl(JSUint8Array bytes, String type);
+  external JSPromise<JSBoolean> remove(String key);
+  external JSPromise<JSUint8Array> shrinkImage(JSUint8Array bytes, int maxSide);
 }
 
 extension type _Info(JSObject _) implements JSObject {
@@ -41,6 +43,23 @@ Future<void> devicePut(String key, Uint8List bytes) async {
   try {
     await files.put(key, bytes.toJS).toDart;
   } catch (_) {}
+}
+
+Future<void> deviceDelete(String key) async {
+  try {
+    await _files?.remove(key).toDart;
+  } catch (_) {}
+}
+
+/// Réduit une photo avant de l'envoyer (plus léger, plus rapide à afficher).
+Future<Uint8List> shrinkImage(Uint8List bytes, int maxSide) async {
+  final files = _files;
+  if (files == null) return bytes;
+  try {
+    return (await files.shrinkImage(bytes.toJS, maxSide).toDart).toDart;
+  } catch (_) {
+    return bytes;
+  }
 }
 
 /// Adresse locale pour lire des octets (audio) sans les retélécharger.

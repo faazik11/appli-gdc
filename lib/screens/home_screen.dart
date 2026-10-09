@@ -9,6 +9,7 @@ import '../services/file_store.dart';
 import '../services/offline.dart';
 import '../services/page_images.dart';
 import '../services/repository.dart';
+import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/announcements.dart';
 import '../widgets/install_card.dart';
@@ -18,7 +19,9 @@ import 'agenda_screen.dart';
 import 'booklet_editor_screen.dart';
 import 'concert_screen.dart';
 import 'members_screen.dart';
+import 'inventory_screen.dart';
 import 'pdf_view_screen.dart';
+import 'recordings_screen.dart';
 import 'song_form_screen.dart';
 import 'song_screen.dart';
 import 'tools_screen.dart';
@@ -46,6 +49,7 @@ class HomeScreen extends StatefulWidget {
   final LibraryLoader load;
   final MembersPanel? membersPanel;
   final AgendaBackend? agenda;
+  final WorkBackend? work;
   final int initialTab;
 
 
@@ -55,6 +59,7 @@ class HomeScreen extends StatefulWidget {
     this.load = _loadFromSupabase,
     this.membersPanel,
     this.agenda,
+    this.work,
     this.initialTab = 0,
   });
 
@@ -65,6 +70,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _repo = Repository.instance;
   late final AgendaBackend _agenda = widget.agenda ?? SupabaseAgenda();
+  late final WorkBackend _work = widget.work ?? SupabaseWork();
   LibraryData _data = const LibraryData([], [], []);
   bool _loading = true;
   String? _error;
@@ -128,6 +134,12 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
     if (saved == true) _load();
   }
+
+  void _openRecordings({bool record = false}) => Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RecordingsScreen(backend: _work, agenda: _agenda, canEdit: _canEdit, startRecording: record)));
+
+  void _openInventory() => Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => InventoryScreen(backend: _work, canEdit: _canEdit)));
 
   void _openTools(int tab) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => ToolsScreen(initialTab: tab)));
@@ -402,9 +414,8 @@ class _HomeScreenState extends State<HomeScreen> {
               onOpenAgenda: () => setState(() => _tab = _Tab.agenda),
               links: _links,
             ),
-            AnnouncementsSection(key: _announcementsKey, profile: widget.profile, backend: _agenda),
-            const SizedBox(height: 4),
             _shortcuts(),
+            AnnouncementsSection(key: _announcementsKey, profile: widget.profile, backend: _agenda),
             const SizedBox(height: 8),
             const InstallCard(),
           ]),
@@ -466,33 +477,52 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Raccourcis compacts : outils pour tous, actions du chef de chœur en plus.
+  /// Raccourcis compacts : outils pour tous, créations du chef de chœur regroupées dans « Créer ».
   Widget _shortcuts() {
-    final items = <(IconData, String, VoidCallback)>[
-      (Icons.tune_rounded, 'Diapason', () => _openTools(0)),
-      (Icons.timer_outlined, 'Métronome', () => _openTools(1)),
-      if (_canEdit) ...[
-        (Icons.campaign_rounded, 'Annonce', () => _announcementsKey.currentState?.write()),
-        (Icons.library_add_rounded, 'Ajouter un chant', () => _openSongForm()),
-        (Icons.auto_stories_rounded, 'Créer un livret', () => _openBookletEditor()),
-        (Icons.upload_file_rounded, 'Importer un livret', _importBooklet),
-      ],
-    ];
-    return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) => ActionChip(
-          avatar: Icon(items[i].$1, size: 18, color: Theme.of(context).colorScheme.tertiary),
-          label: Text(items[i].$2),
-          onPressed: items[i].$3,
-        ),
-      ),
+    final tint = Theme.of(context).colorScheme.tertiary;
+    Widget chip(IconData icon, String label, VoidCallback onTap, {Color? color}) => ActionChip(
+          avatar: Icon(icon, size: 18, color: color ?? tint),
+          label: Text(label),
+          onPressed: onTap,
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Wrap(spacing: 8, runSpacing: 8, children: [
+        if (_canEdit) chip(Icons.mic_rounded, 'Enregistrer', () => _openRecordings(record: true), color: const Color(0xFFD32F2F)),
+        chip(Icons.headphones_rounded, 'Répétitions', _openRecordings),
+        chip(Icons.inventory_2_outlined, 'Inventaire', _openInventory),
+        chip(Icons.tune_rounded, 'Diapason', () => _openTools(0)),
+        chip(Icons.timer_outlined, 'Métronome', () => _openTools(1)),
+        if (_canEdit)
+          MenuAnchor(
+            builder: (context, menu, _) => chip(Icons.add_rounded, 'Créer', () => menu.isOpen ? menu.close() : menu.open()),
+            menuChildren: [
+              MenuItemButton(
+                leadingIcon: const Icon(Icons.campaign_rounded),
+                onPressed: () => _announcementsKey.currentState?.write(),
+                child: const Text('Une annonce'),
+              ),
+              MenuItemButton(
+                leadingIcon: const Icon(Icons.library_add_rounded),
+                onPressed: () => _openSongForm(),
+                child: const Text('Un chant'),
+              ),
+              MenuItemButton(
+                leadingIcon: const Icon(Icons.auto_stories_rounded),
+                onPressed: () => _openBookletEditor(),
+                child: const Text('Un livret'),
+              ),
+              MenuItemButton(
+                leadingIcon: const Icon(Icons.upload_file_rounded),
+                onPressed: _importBooklet,
+                child: const Text('Importer un livret PDF'),
+              ),
+            ],
+          ),
+      ]),
     );
   }
+
 
   // ---------- Chants ----------
 
