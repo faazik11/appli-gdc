@@ -392,6 +392,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ---------- Accueil ----------
 
+  final _announcementsKey = GlobalKey<AnnouncementsSectionState>();
+
   Widget _homeTab(bool wide) {
     final songsByCategory = <int, int>{};
     for (final s in _data.songs) {
@@ -417,14 +419,15 @@ class _HomeScreenState extends State<HomeScreen> {
         _hero(),
         ContentWidth(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            const InstallCard(),
-            AnnouncementsSection(profile: widget.profile, backend: _agenda),
             NextEventsSection(
               profile: widget.profile,
               backend: _agenda,
               onOpenAgenda: () => setState(() => _tab = _Tab.agenda),
               links: _links,
             ),
+            AnnouncementsSection(key: _announcementsKey, profile: widget.profile, backend: _agenda),
+            const SizedBox(height: 4),
+            _shortcuts(),
             const SectionHeader('Bibliothèque'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -451,26 +454,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
               ]),
             ),
-            const SectionHeader('Outils'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(children: [
-                Expanded(child: _quickAction(Icons.tune_rounded, 'Diapason', () => _openTools(0))),
-                const SizedBox(width: 12),
-                Expanded(child: _quickAction(Icons.timer_outlined, 'Métronome', () => _openTools(1))),
-              ]),
-            ),
-            if (_canEdit) ...[
-              const SectionHeader('Actions rapides'),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Wrap(spacing: 12, runSpacing: 12, children: [
-                  _quickAction(Icons.library_add_rounded, 'Ajouter un chant', () => _openSongForm()),
-                  _quickAction(Icons.auto_stories_rounded, 'Créer un livret', () => _openBookletEditor()),
-                  _quickAction(Icons.upload_file_rounded, 'Importer un livret', _importBooklet),
-                ]),
-              ),
-            ],
             SectionHeader(
               'Ajoutés récemment',
               actionLabel: _data.songs.isEmpty ? null : 'Tout voir',
@@ -494,30 +477,15 @@ class _HomeScreenState extends State<HomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(children: [
-                  for (final s in recent.take(5))
+                  for (final s in recent.take(3))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: SongCard(song: s, category: _categoryOf(s), onTap: () => _openSong(s)),
                     ),
                 ]),
               ),
-            if (_data.booklets.isNotEmpty) ...[
-              SectionHeader('Derniers livrets',
-                  actionLabel: 'Tout voir', onAction: () => setState(() => _tab = _Tab.booklets)),
-              SizedBox(
-                height: 170,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _data.booklets.length.clamp(0, 8),
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) => SizedBox(
-                    width: 230,
-                    child: BookletCard(booklet: _data.booklets[i], onTap: () => _openBooklet(_data.booklets[i])),
-                  ),
-                ),
-              ),
-            ],
+            const SizedBox(height: 8),
+            const InstallCard(),
           ]),
         ),
       ]),
@@ -545,7 +513,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         ContentWidth(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 18, 14, 26),
+            padding: const EdgeInsets.fromLTRB(22, 18, 14, 22),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 const AppLogo(size: 40),
@@ -566,23 +534,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Avatar(widget.profile.fullName, radius: 20),
                 ),
               ]),
-              const SizedBox(height: 26),
+              const SizedBox(height: 18),
               Text(_capitalize(today),
                   style: TextStyle(fontFamily: 'Poppins', color: AppColors.goldLight.withValues(alpha: 0.95), fontSize: 13, letterSpacing: 0.4)),
               const SizedBox(height: 4),
               Text(firstName.isEmpty ? 'Bonjour !' : 'Bonjour $firstName',
                   style: const TextStyle(fontFamily: 'DMSerifDisplay', color: Colors.white, fontSize: 34, height: 1.1)),
-              const SizedBox(height: 6),
-              Text('Prêt pour la répétition ?',
-                  style: TextStyle(fontFamily: 'Poppins', color: Colors.white.withValues(alpha: 0.8), fontSize: 14)),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _searchLauncher(),
-              const SizedBox(height: 18),
-              Wrap(spacing: 10, runSpacing: 10, children: [
-                _stat('${_data.songs.length}', 'chants'),
-                _stat('${_data.booklets.length}', 'livrets'),
-                _stat('${_data.songs.where((s) => s.hasYoutube || s.hasAudio).length}', 'à écouter'),
-              ]),
             ]),
           ),
         ),
@@ -607,43 +566,29 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
-  Widget _stat(String value, String label) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-        ),
-        child: RichText(
-          text: TextSpan(children: [
-            TextSpan(
-                text: '$value ',
-                style: const TextStyle(fontFamily: 'Poppins', color: AppColors.goldLight, fontWeight: FontWeight.w700, fontSize: 15)),
-            TextSpan(text: label, style: const TextStyle(fontFamily: 'Poppins', color: Colors.white, fontSize: 13)),
-          ]),
-        ),
-      );
-
-  Widget _quickAction(IconData icon, String label, VoidCallback onTap) {
-    final theme = Theme.of(context);
+  /// Raccourcis compacts : outils pour tous, actions du chef de chœur en plus.
+  Widget _shortcuts() {
+    final items = <(IconData, String, VoidCallback)>[
+      (Icons.tune_rounded, 'Diapason', () => _openTools(0)),
+      (Icons.timer_outlined, 'Métronome', () => _openTools(1)),
+      if (_canEdit) ...[
+        (Icons.campaign_rounded, 'Annonce', () => _announcementsKey.currentState?.write()),
+        (Icons.library_add_rounded, 'Ajouter un chant', () => _openSongForm()),
+        (Icons.auto_stories_rounded, 'Créer un livret', () => _openBookletEditor()),
+        (Icons.upload_file_rounded, 'Importer un livret', _importBooklet),
+      ],
+    ];
     return SizedBox(
-      width: 200,
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.gold.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: theme.colorScheme.tertiary, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Text(label, style: theme.textTheme.labelLarge)),
-            ]),
-          ),
+      height: 44,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) => ActionChip(
+          avatar: Icon(items[i].$1, size: 18, color: Theme.of(context).colorScheme.tertiary),
+          label: Text(items[i].$2),
+          onPressed: items[i].$3,
         ),
       ),
     );

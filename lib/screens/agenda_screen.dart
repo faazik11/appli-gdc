@@ -294,7 +294,10 @@ class _NextEventsSectionState extends State<NextEventsSection> {
     final upcoming = data.upcoming;
     final rehearsal = upcoming.where((e) => e.isRehearsal).firstOrNull;
     final show = upcoming.where((e) => !e.isRehearsal).firstOrNull;
-    final items = [rehearsal, show].whereType<ChoirEvent>().toList()..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    // Accueil allégé : seulement le prochain événement.
+    final items = ([rehearsal, show].whereType<ChoirEvent>().toList()..sort((a, b) => a.startsAt.compareTo(b.startsAt)))
+        .take(1)
+        .toList();
     // Rappel : les autres événements des 3 prochaines semaines sans réponse.
     final soon = DateTime.now().add(const Duration(days: 21));
     final waiting = upcoming
@@ -302,8 +305,7 @@ class _NextEventsSectionState extends State<NextEventsSection> {
         .where((e) => e.participantOf(widget.profile.id)?.response == null)
         .length;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      SectionHeader(rehearsal == null ? 'Agenda' : 'Prochaine répétition',
-          actionLabel: 'Agenda', onAction: widget.onOpenAgenda),
+      SectionHeader('À venir', actionLabel: 'Agenda', onAction: widget.onOpenAgenda),
       if (waiting > 0)
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),

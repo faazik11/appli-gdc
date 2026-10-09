@@ -14,10 +14,10 @@ class AnnouncementsSection extends StatefulWidget {
   const AnnouncementsSection({super.key, required this.profile, required this.backend});
 
   @override
-  State<AnnouncementsSection> createState() => _AnnouncementsSectionState();
+  State<AnnouncementsSection> createState() => AnnouncementsSectionState();
 }
 
-class _AnnouncementsSectionState extends State<AnnouncementsSection> {
+class AnnouncementsSectionState extends State<AnnouncementsSection> {
   List<Announcement>? _items;
   Map<String, String> _names = const {};
   bool _showAll = false;
@@ -41,7 +41,8 @@ class _AnnouncementsSectionState extends State<AnnouncementsSection> {
     }
   }
 
-  Future<void> _write() async {
+  /// Écrire une annonce (aussi accessible depuis les raccourcis de l'accueil).
+  Future<void> write() async {
     final controller = TextEditingController();
     final body = await showDialog<String>(
       context: context,
@@ -89,25 +90,14 @@ class _AnnouncementsSectionState extends State<AnnouncementsSection> {
   Widget build(BuildContext context) {
     final items = _items;
     final editor = widget.profile.isEditor;
-    if (items == null || (items.isEmpty && !editor)) return const SizedBox.shrink();
+    // Accueil allégé : seulement la dernière annonce, les autres sur demande.
+    if (items == null || items.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
-    final shown = _showAll ? items : items.take(2).toList();
+    final shown = _showAll ? items : items.take(1).toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      SectionHeader('Annonces',
-          actionLabel: editor ? 'Publier' : (items.length > 2 && !_showAll ? 'Tout voir' : null),
-          onAction: editor ? _write : () => setState(() => _showAll = true)),
-      if (items.isEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Card(
-            child: ListTile(
-              leading: const Icon(Icons.campaign_outlined),
-              title: const Text('Aucune annonce'),
-              subtitle: const Text('Publie un message pour tout le groupe : changement de salle, tenue…'),
-              onTap: _write,
-            ),
-          ),
-        ),
+      SectionHeader('Annonce',
+          actionLabel: items.length > 1 && !_showAll ? 'Voir les ${items.length}' : null,
+          onAction: () => setState(() => _showAll = true)),
       for (final a in shown)
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
