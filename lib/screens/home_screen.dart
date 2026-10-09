@@ -395,24 +395,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final _announcementsKey = GlobalKey<AnnouncementsSectionState>();
 
   Widget _homeTab(bool wide) {
-    final songsByCategory = <int, int>{};
-    for (final s in _data.songs) {
-      songsByCategory[s.categoryId] = (songsByCategory[s.categoryId] ?? 0) + 1;
-    }
-    final recent = [..._data.songs]
-      ..sort((a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
-    final width = MediaQuery.sizeOf(context).width;
-    final columns = width >= 1100 ? 5 : (width >= 700 ? 4 : 2);
-    Widget categoryCard(Category c) {
-      final n = c.isBooklets ? _data.booklets.length : (songsByCategory[c.id] ?? 0);
-      return CategoryCard(
-        name: c.name,
-        count: n,
-        countLabel: c.isBooklets ? (n > 1 ? 'livrets' : 'livret') : (n > 1 ? 'chants' : 'chant'),
-        onTap: () => c.isBooklets ? setState(() => _tab = _Tab.booklets) : _showCategory(c.id),
-      );
-    }
-
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(padding: const EdgeInsets.only(bottom: 32), children: [
@@ -428,62 +410,6 @@ class _HomeScreenState extends State<HomeScreen> {
             AnnouncementsSection(key: _announcementsKey, profile: widget.profile, backend: _agenda),
             const SizedBox(height: 4),
             _shortcuts(),
-            const SectionHeader('Bibliothèque'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(children: [
-                GridView(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.15,
-                  ),
-                  children: [
-                    for (final c in columns == 5 ? _data.categories : _songCategories) categoryCard(c),
-                  ],
-                ),
-                // Sur téléphone et tablette, la carte Livrets occupe toute la largeur.
-                if (columns != 5)
-                  for (final c in _data.categories.where((c) => c.isBooklets))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: SizedBox(height: 110, width: double.infinity, child: categoryCard(c)),
-                    ),
-              ]),
-            ),
-            SectionHeader(
-              'Ajoutés récemment',
-              actionLabel: _data.songs.isEmpty ? null : 'Tout voir',
-              onAction: () => _showCategory(null),
-            ),
-            if (recent.isEmpty)
-              EmptyState(
-                icon: Icons.queue_music_rounded,
-                title: 'Aucun chant pour l\'instant',
-                message: _canEdit
-                    ? 'Ajoute ton premier chant avec ses paroles, sa vidéo YouTube ou son audio.'
-                    : 'Les chants ajoutés par le chef de chœur apparaîtront ici.',
-                action: _canEdit
-                    ? FilledButton.icon(
-                        icon: const Icon(Icons.add_rounded),
-                        label: const Text('Ajouter un chant'),
-                        onPressed: () => _openSongForm())
-                    : null,
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(children: [
-                  for (final s in recent.take(3))
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: SongCard(song: s, category: _categoryOf(s), onTap: () => _openSong(s)),
-                    ),
-                ]),
-              ),
             const SizedBox(height: 8),
             const InstallCard(),
           ]),
