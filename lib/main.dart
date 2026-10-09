@@ -7,6 +7,7 @@ import 'config.dart';
 import 'models.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/new_password_screen.dart';
 import 'screens/pending_screen.dart';
 import 'services/offline.dart';
 import 'services/repository.dart';
@@ -16,7 +17,13 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR');
   // Sans connexion, la session enregistrée est gardée et l'appli s'ouvre sur les données enregistrées.
-  await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
+  // Flux « implicite » : les liens reçus par e-mail (confirmation, mot de passe oublié) marchent
+  // même ouverts dans un autre navigateur que celui de la demande (ex. Safari au lieu de l'icône GDC).
+  await Supabase.initialize(
+    url: supabaseUrl,
+    publishableKey: supabasePublishableKey,
+    authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit),
+  );
   runApp(const AppliGdc());
 }
 
@@ -49,12 +56,16 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   Future<Profile?>? _profile;
 
+  /// Arrivée par le lien « mot de passe oublié » : on demande le nouveau mot de passe.
+  bool _recovering = false;
+
   @override
   void initState() {
     super.initState();
     _reload();
     Supabase.instance.client.auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedOut) Offline.clearLastProfile();
+      if (state.event == AuthChangeEvent.passwordRecovery) _recovering = true;
       if (mounted) setState(_reload);
     }, onError: (_) {});
   }
@@ -63,6 +74,9 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
+    if (_recovering && Supabase.instance.client.auth.currentSession != null) {
+      return NewPasswordScreen(onDone: () => setState(() => _recovering = false));
+    }
     if (Supabase.instance.client.auth.currentSession == null) {
       // Pas de session active : soit déconnecté, soit hors connexion (la session n'a pas pu être rafraîchie).
       return FutureBuilder<Map<String, dynamic>?>(

@@ -49,6 +49,56 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  /// Envoie un lien par e-mail pour choisir un nouveau mot de passe.
+  Future<void> _forgot() async {
+    final email = TextEditingController(text: _email.text.trim());
+    final address = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mot de passe oublié'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Indique ton e-mail : tu recevras un lien pour choisir un nouveau mot de passe.'),
+          const SizedBox(height: 14),
+          TextField(
+            controller: email,
+            autofocus: true,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(labelText: 'E-mail', prefixIcon: Icon(Icons.mail_rounded)),
+            onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, email.text.trim()), child: const Text('Envoyer le lien')),
+        ],
+      ),
+    );
+    if (address == null || address.isEmpty) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        address,
+        redirectTo: kIsWeb ? '${Uri.base.origin}${Uri.base.path}' : null,
+      );
+      if (mounted) {
+        setState(() => _error = 'E-mail envoyé à $address. Ouvre le lien reçu (pense à regarder dans les spams) '
+            'pour choisir un nouveau mot de passe.');
+      }
+    } on AuthException catch (e) {
+      final m = e.message.toLowerCase();
+      if (mounted) {
+        setState(() => _error = m.contains('rate') || m.contains('seconds')
+            ? 'Trop de demandes d\'un coup. Réessaie dans quelques minutes.'
+            : e.message);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   String _translate(String message) {
     final m = message.toLowerCase();
     if (m.contains('invalid login')) return 'E-mail ou mot de passe incorrect.';
@@ -142,6 +192,11 @@ class _AuthScreenState extends State<AuthScreen> {
                               : Text(_signUp ? 'Créer mon compte' : 'Se connecter'),
                         ),
                         const SizedBox(height: 6),
+                        if (!_signUp)
+                          TextButton(
+                            onPressed: _busy ? null : _forgot,
+                            child: const Text('Mot de passe oublié ?'),
+                          ),
                         TextButton(
                           onPressed: () => setState(() {
                             _signUp = !_signUp;

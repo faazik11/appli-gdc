@@ -19,6 +19,7 @@ import 'agenda_screen.dart';
 import 'booklet_editor_screen.dart';
 import 'concert_screen.dart';
 import 'members_screen.dart';
+import 'new_password_screen.dart';
 import 'inventory_screen.dart';
 import 'pdf_view_screen.dart';
 import 'recordings_screen.dart';
@@ -462,9 +463,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   tooltip: 'Mon compte',
                   onSelected: (v) {
                     if (v == 'logout') Supabase.instance.client.auth.signOut();
+                    if (v == 'password') {
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (ctx) => NewPasswordScreen(onDone: () => Navigator.of(ctx).pop())));
+                    }
                   },
                   itemBuilder: (_) => [
                     PopupMenuItem(enabled: false, child: Text('${widget.profile.fullName} · ${roleLabel(widget.profile.role)}')),
+                    const PopupMenuItem(value: 'password', child: Text('Changer mon mot de passe')),
                     const PopupMenuItem(value: 'logout', child: Text('Se déconnecter')),
                   ],
                   child: Avatar(widget.profile.fullName, radius: 18),
