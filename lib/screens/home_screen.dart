@@ -112,7 +112,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _Tab.songs,
         _Tab.agenda,
         _Tab.recordings,
-        _Tab.booklets,
         _Tab.inventory,
         if (widget.profile.isAdmin) _Tab.members,
       ];
@@ -311,13 +310,14 @@ class _HomeScreenState extends State<HomeScreen> {
           _Tab.home => (Icons.home_outlined, Icons.home_rounded, 'Accueil'),
           _Tab.songs => (Icons.library_music_outlined, Icons.library_music_rounded, 'Chants'),
           _Tab.agenda => (Icons.event_outlined, Icons.event_rounded, 'Agenda'),
-          _Tab.booklets => (Icons.menu_book_outlined, Icons.menu_book_rounded, 'Livrets'),
+          _Tab.booklets => (Icons.menu_book_outlined, Icons.menu_book_rounded, 'Livrets'), // dans l'onglet Chants
           _Tab.recordings => (Icons.mic_none_rounded, Icons.mic_rounded, 'Répètes'),
           _Tab.inventory => (Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'Inventaire'),
           _Tab.members => (Icons.groups_outlined, Icons.groups_rounded, 'Membres'),
         },
     ];
-    final index = _tabs.indexOf(_tab);
+    // Les livrets sont dans l'onglet Chants.
+    final index = _tabs.indexOf(_tab == _Tab.booklets ? _Tab.songs : _tab);
     void select(int i) => setState(() {
           _tab = _tabs[i];
           if (_tab == _Tab.songs && i != index) _categoryFilter = null;
@@ -544,6 +544,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ---------- Chants ----------
 
+  /// Haut de l'onglet Chants : bascule entre les chants et les livrets.
+  Widget _libraryHeader() => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+        child: SegmentedButton<_Tab>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(value: _Tab.songs, icon: Icon(Icons.library_music_rounded), label: Text('Chants')),
+            ButtonSegment(value: _Tab.booklets, icon: Icon(Icons.menu_book_rounded), label: Text('Livrets')),
+          ],
+          selected: {_tab},
+          onSelectionChanged: (v) => setState(() => _tab = v.first),
+        ),
+      );
+
   Widget _songsTab() {
     final theme = Theme.of(context);
     final songs = _data.songs
@@ -558,10 +572,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ListView(padding: const EdgeInsets.only(bottom: 100), children: [
         ContentWidth(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-              child: Text('Chants', style: theme.textTheme.headlineLarge),
-            ),
+            _libraryHeader(),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
               child: Text('${_data.songs.length} chants dans la bibliothèque',
@@ -643,10 +654,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ListView(padding: const EdgeInsets.only(bottom: 100), children: [
         ContentWidth(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-              child: Text('Livrets', style: theme.textTheme.headlineLarge),
-            ),
+            _libraryHeader(),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text('Les programmes de vos prestations',
