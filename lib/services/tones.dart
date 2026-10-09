@@ -35,19 +35,67 @@ class Tones {
   /// Fréquence d'une note : [semitonesFromA4] demi-tons au-dessus (ou au-dessous) du La de référence.
   static double frequency(int semitonesFromA4, {double a4 = 440}) => a4 * pow(2, semitonesFromA4 / 12);
 
-  /// Son doux et tenu (fondamentale + harmoniques légères), avec attaque et extinction.
-  static Uint8List note(double freq, {double seconds = 2.5}) {
+  /// Note du diapason dans le [timbre] choisi, avec attaque et extinction.
+  static Uint8List note(double freq, {double seconds = 2.5, Timbre timbre = Timbre.doux}) {
     final n = (seconds * sampleRate).round();
     final s = Float64List(n);
-    final fade = (0.04 * sampleRate).round();
-    final release = (0.4 * sampleRate).round();
+    final rnd = Random(7);
+    // Voix « Aah » : poids des harmoniques selon les formants de la voyelle a.
+    double formant(double f) {
+      double peak(double centre, double width, double gain) => gain / (1 + pow((f - centre) / width, 2));
+      return peak(730, 110, 1.0) + peak(1090, 120, 0.55) + peak(2440, 200, 0.25) + 0.04;
+    }
+
+    final voice = [for (var h = 1; h * freq < sampleRate / 2.2 && h <= 40; h++) (h, formant(h * freq))];
     for (var i = 0; i < n; i++) {
       final t = i / sampleRate;
-      var v = sin(2 * pi * freq * t) + 0.3 * sin(4 * pi * freq * t) + 0.12 * sin(6 * pi * freq * t);
+      final w = 2 * pi * freq * t;
+      double v;
+      switch (timbre) {
+        case Timbre.doux:
+          v = sin(w) + 0.3 * sin(2 * w) + 0.12 * sin(3 * w);
+        case Timbre.piano:
+          // Corde frappée : harmoniques légèrement décalées qui s'éteignent plus vite que la fondamentale.
+          v = 0.0;
+          for (var h = 1; h <= 8; h++) {
+            final stretch = h * (1 + 0.0004 * h * h);
+            v += sin(w * stretch) * exp(-t * (0.9 + 0.55 * h)) / pow(h, 1.1);
+          }
+          v *= 1.6;
+        case Timbre.orgue:
+          // Jeux d'orgue : fondamentale, octaves et quinte (pas d'octave grave : la note resterait juste mais paraîtrait plus basse).
+          v = sin(w) + 0.6 * sin(2 * w) + 0.35 * sin(3 * w) + 0.3 * sin(4 * w) + 0.12 * sin(8 * w);
+        case Timbre.flute:
+          final vib = 1 + 0.004 * sin(2 * pi * 5 * t) * min(1.0, t / 0.6);
+          final wv = 2 * pi * freq * vib * t;
+          v = sin(wv) + 0.18 * sin(2 * wv) + 0.05 * sin(3 * wv) + 0.06 * (rnd.nextDouble() * 2 - 1);
+        case Timbre.fourche:
+          // Diapason à fourche : son pur.
+          v = sin(w);
+        case Timbre.voix:
+          final vib = 1 + 0.006 * sin(2 * pi * 5.5 * t) * min(1.0, t / 0.5);
+          final wv = 2 * pi * freq * vib * t;
+          v = 0.0;
+          for (final (h, g) in voice) {
+            v += g * sin(h * wv);
+          }
+      }
+      s[i] = v;
+    }
+    // Volume identique pour tous les sons, attaque et extinction en douceur.
+    var peak = 0.0;
+    for (final v in s) {
+      peak = max(peak, v.abs());
+    }
+    final attack = ((timbre == Timbre.piano ? 0.004 : (timbre == Timbre.voix || timbre == Timbre.flute ? 0.12 : 0.04)) *
+            sampleRate)
+        .round();
+    final release = (0.4 * sampleRate).round();
+    for (var i = 0; i < n; i++) {
       var env = 1.0;
-      if (i < fade) env = i / fade;
-      if (i > n - release) env = (n - i) / release;
-      s[i] = 0.45 * v / 1.42 * env;
+      if (i < attack) env = i / attack;
+      if (i > n - release) env = min(env, (n - i) / release);
+      s[i] = 0.7 * s[i] / (peak == 0 ? 1 : peak) * env;
     }
     return _wav(s);
   }
@@ -69,4 +117,17 @@ class Tones {
     }
     return _wav(s);
   }
+}
+
+/// Sons proposés par le diapason.
+enum Timbre {
+  doux('Doux'),
+  piano('Piano'),
+  orgue('Orgue'),
+  flute('Flûte'),
+  voix('Voix'),
+  fourche('Diapason');
+
+  final String label;
+  const Timbre(this.label);
 }
