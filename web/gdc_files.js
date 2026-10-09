@@ -123,8 +123,8 @@ window.gdcFiles = {
   },
 };
 
-// Enregistrement audio avec le micro (MediaRecorder). Voix : mono, débit réduit
-// (≈ 11 Mo par heure) pour que 2 h de répétition restent sous la limite de 50 Mo.
+// Enregistrement audio avec le micro (MediaRecorder). Voix : même son des deux côtés, débit réduit
+// (≈ 15 Mo par heure) pour que 2 h de répétition restent sous la limite de 50 Mo.
 let rec = null;
 window.gdcRecorder = {
   supported() {
@@ -132,25 +132,43 @@ window.gdcRecorder = {
   },
 
   async start() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true, channelCount: 1 },
+    // Contexte audio créé tout de suite, pendant l'appui sur le bouton (exigé par l'iPhone).
+    let ctx = null;
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ctx.resume();
+    } catch (e) {}
+    const mic = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true },
     });
+    // Le micro est ramené en mono puis copié sur les deux côtés : sinon l'iPhone
+    // peut produire un fichier qu'on n'entend que dans l'écouteur gauche.
+    let stream = mic;
+    let analyser = null;
+    if (ctx) {
+      try {
+        if (ctx.state !== 'running') await ctx.resume();
+        const source = ctx.createMediaStreamSource(mic);
+        const mono = new GainNode(ctx, { channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+        const both = new GainNode(ctx, { channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+        const out = ctx.createMediaStreamDestination();
+        out.channelCount = 2;
+        source.connect(mono).connect(both).connect(out);
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        mono.connect(analyser);
+        if (ctx.state === 'running') stream = out.stream;
+      } catch (e) {
+        stream = mic;
+      }
+    }
     const types = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
     const mimeType = types.find((t) => MediaRecorder.isTypeSupported(t)) ?? '';
-    const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 24000 });
+    const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 32000 });
     const chunks = [];
     recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    // Niveau du micro pour le témoin à l'écran
-    let analyser = null;
-    try {
-      const ctx = new AudioContext();
-      analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      ctx.createMediaStreamSource(stream).connect(analyser);
-      rec = { ctx };
-    } catch (e) {}
     recorder.start(5000);
-    rec = { ...(rec ?? {}), recorder, stream, chunks, analyser, paused: false };
+    rec = { recorder, stream: mic, chunks, analyser, ctx };
     return recorder.mimeType || mimeType || 'audio/webm';
   },
 
