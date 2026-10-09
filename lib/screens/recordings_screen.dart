@@ -341,7 +341,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
                     maxLines: 20,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
-                      hintText: 'Ex.\n• Hymne à l\'amour : entrée des altos mesure 12\n• Tala al badru : tempo trop rapide au refrain',
+                      hintText: 'Chants répétés : Vers la ville de Médine, Un seul regard',
                       alignLabelWithHint: true,
                     ),
                     onChanged: (_) => setState(() => _dirty = true),
@@ -614,7 +614,7 @@ class _RecorderScreenState extends State<RecorderScreen> {
                   decoration: InputDecoration(
                     labelText: 'Points abordés',
                     labelStyle: const TextStyle(color: AppColors.goldLight),
-                    hintText: '• Hymne à l\'amour : entrée des altos\n• Tala al badru : refrain',
+                    hintText: 'Chants répétés : Vers la ville de Médine, Un seul regard',
                     hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.08),

@@ -153,7 +153,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
               controller: _tags,
               decoration: const InputDecoration(
                 labelText: 'Mots-clés (séparés par des virgules)',
-                hintText: 'Noël, entrée, a cappella',
+                hintText: 'Ramadan, Mawlid…',
               ),
             ),
             const SizedBox(height: 12),

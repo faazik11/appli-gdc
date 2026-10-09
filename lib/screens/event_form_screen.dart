@@ -243,7 +243,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   labelText: _kind == EventKind.prestation ? 'Nom de la prestation' : 'Titre (facultatif)',
-                  hintText: _kind == EventKind.prestation ? 'Ex. Mariage de Sarah et Karim' : 'Ex. Répétition générale',
+                  hintText: _kind == EventKind.prestation ? 'Ex. Mariage de Untel et Unetelle' : 'Ex. Répétition générale',
                   prefixIcon: Icon(kindIcon(_kind)),
                 ),
               ),
@@ -296,7 +296,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
                   labelText: 'Infos pour les membres',
-                  hintText: 'Tenue, chants à revoir, parking…',
+                  hintText: 'Tenue, chants à revoir…',
                   prefixIcon: Icon(Icons.notes_rounded),
                 ),
               ),

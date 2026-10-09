@@ -56,7 +56,7 @@ class AnnouncementsSectionState extends State<AnnouncementsSection> {
             minLines: 3,
             maxLines: 8,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(hintText: 'Ex. Samedi la répétition a lieu à la salle Paul Bert.'),
+            decoration: const InputDecoration(hintText: 'Ex. Samedi la répétition a lieu au Hangar.'),
           ),
         ),
         actions: [

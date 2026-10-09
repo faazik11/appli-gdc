@@ -165,7 +165,7 @@ class _BookletEditorScreenState extends State<BookletEditorScreen> {
               Expanded(
                 child: TextFormField(
                   initialValue: part.name,
-                  decoration: const InputDecoration(labelText: 'Nom de la partie', hintText: 'Entrée, Méditation…'),
+                  decoration: const InputDecoration(labelText: 'Nom de la partie', hintText: 'Partie 1, Bonus…'),
                   onChanged: (v) => part.name = v,
                 ),
               ),
