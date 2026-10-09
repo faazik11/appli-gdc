@@ -49,7 +49,6 @@ class _TunerState extends State<_Tuner> {
   int _octave = 4;
   double _a4 = 440;
   bool _hold = false;
-  Timbre _timbre = Timbre.doux;
   int? _playing;
 
   @override
@@ -65,7 +64,7 @@ class _TunerState extends State<_Tuner> {
     setState(() => _playing = index);
     try {
       await _player.stop();
-      await _player.setAudioSource(_wavSource(Tones.note(freq, seconds: _hold ? 4 : 2.5, timbre: _timbre)));
+      await _player.setAudioSource(_wavSource(Tones.note(freq, seconds: _hold ? 4 : 2.5)));
       await _player.setLoopMode(_hold ? LoopMode.one : LoopMode.off);
       await _player.play();
     } finally {
@@ -119,20 +118,6 @@ class _TunerState extends State<_Tuner> {
                   ),
               ],
             ),
-            const SizedBox(height: 20),
-            Text('Son', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 6),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final t in Timbre.values)
-                ChoiceChip(
-                  label: Text(t.label),
-                  selected: _timbre == t,
-                  onSelected: (_) {
-                    setState(() => _timbre = t);
-                    _stop();
-                  },
-                ),
-            ]),
             const SizedBox(height: 20),
             Text('Octave', style: theme.textTheme.titleSmall),
             const SizedBox(height: 6),
