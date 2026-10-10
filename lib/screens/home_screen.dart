@@ -8,12 +8,14 @@ import '../services/agenda.dart';
 import '../services/file_store.dart';
 import '../services/offline.dart';
 import '../services/page_images.dart';
+import '../services/push_service.dart';
 import '../services/repository.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/announcements.dart';
 import '../widgets/install_card.dart';
 import '../widgets/library_links.dart';
+import '../widgets/notifications_card.dart';
 import '../widgets/ui.dart';
 import 'agenda_screen.dart';
 import 'booklet_editor_screen.dart';
@@ -84,6 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _tab = _tabs[widget.initialTab.clamp(0, _tabs.length - 1)];
     _load();
+    PushService.refresh();
   }
 
   Future<void> _load() async {
@@ -433,11 +436,29 @@ class _HomeScreenState extends State<HomeScreen> {
             _shortcuts(),
             AnnouncementsSection(key: _announcementsKey, profile: widget.profile, backend: _agenda),
             const SizedBox(height: 8),
+            const NotificationsCard(),
             const InstallCard(),
           ]),
         ),
       ]),
     );
+  }
+
+  void _snack(String text) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _enableNotifications() async {
+    if (PushService.state.value == PushState.blocked) {
+      _snack('Les notifications sont bloquées : autorise-les pour l\'appli GDC dans les réglages du téléphone.');
+      return;
+    }
+    try {
+      final result = await PushService.enable();
+      _snack(result == PushState.on ? 'Notifications activées.' : 'Notifications pas activées.');
+    } catch (e) {
+      _snack('Impossible d\'activer les notifications : $e');
+    }
   }
 
   /// Bandeau compact : logo, bonjour et date, compte.
@@ -476,15 +497,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 PopupMenuButton<String>(
                   tooltip: 'Mon compte',
-                  onSelected: (v) {
-                    if (v == 'logout') Supabase.instance.client.auth.signOut();
+                  onSelected: (v) async {
                     if (v == 'password') {
                       Navigator.of(context).push(MaterialPageRoute(
                           builder: (ctx) => NewPasswordScreen(onDone: () => Navigator.of(ctx).pop())));
                     }
+                    if (v == 'logout') {
+                      await PushService.disable();
+                      Supabase.instance.client.auth.signOut();
+                    }
+                    if (v == 'notifs-off') {
+                      await PushService.disable();
+                      _snack('Notifications coupées sur ce téléphone.');
+                    }
                   },
                   itemBuilder: (_) => [
                     PopupMenuItem(enabled: false, child: Text('${widget.profile.fullName} · ${roleLabel(widget.profile.role)}')),
+                    if (PushService.state.value == PushState.on)
+                      const PopupMenuItem(value: 'notifs-off', child: Text('Couper les notifications'))
+                    else if (PushService.state.value != PushState.unsupported)
+                      // onTap : appelé pendant le toucher, nécessaire pour que l'iPhone pose la question.
+                      PopupMenuItem(onTap: _enableNotifications, child: const Text('Activer les notifications')),
                     const PopupMenuItem(value: 'password', child: Text('Changer mon mot de passe')),
                     const PopupMenuItem(value: 'logout', child: Text('Se déconnecter')),
                   ],

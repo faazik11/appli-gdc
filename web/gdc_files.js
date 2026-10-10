@@ -206,3 +206,52 @@ window.gdcRecorder = {
     return new Uint8Array(await blob.arrayBuffer());
   },
 };
+
+// ---------- Notifications sur le téléphone (Web Push) ----------
+window.gdcPush = {
+  supported() {
+    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  },
+  permission() {
+    return this.supported() ? Notification.permission : 'unsupported';
+  },
+  async _registration() {
+    return (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.register('gdc_sw.js'));
+  },
+  // À appeler directement depuis un toucher : iPhone n'accepte la demande qu'à ce moment-là.
+  // Renvoie l'abonnement en JSON, ou null si refusé.
+  async subscribe(publicKey) {
+    const asked = Notification.requestPermission();
+    if ((await asked) !== 'granted') return null;
+    const reg = await this._registration();
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const raw = atob(publicKey.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (publicKey.length % 4)) % 4));
+      const key = Uint8Array.from(raw, (c) => c.charCodeAt(0));
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    }
+    return this._json(sub);
+  },
+  // Abonnement existant (si les notifications sont déjà autorisées), sinon null.
+  async current() {
+    if (!this.supported() || Notification.permission !== 'granted') return null;
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && (await reg.pushManager.getSubscription());
+    return sub ? this._json(sub) : null;
+  },
+  // Coupe les notifications sur cet appareil ; renvoie l'adresse de l'abonnement supprimé.
+  async unsubscribe() {
+    if (!this.supported()) return null;
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && (await reg.pushManager.getSubscription());
+    if (!sub) return null;
+    const endpoint = sub.endpoint;
+    await sub.unsubscribe();
+    return endpoint;
+  },
+  _json(sub) {
+    const j = sub.toJSON();
+    return JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
+  },
+};

@@ -98,3 +98,37 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.includes('/gdc-fichier/')) return;
   event.respondWith(isCode(url) || request.mode === 'navigate' ? networkFirst(request) : cacheFirst(request));
 });
+
+// ---------- Notifications ----------
+
+self.addEventListener('push', (event) => {
+  let msg = {};
+  try {
+    msg = event.data ? event.data.json() : {};
+  } catch (e) {
+    msg = { body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(
+    self.registration.showNotification(msg.title || 'Groupe de Chant Narbonne', {
+      body: msg.body || '',
+      icon: 'icons/Icon-192.png',
+      badge: 'icons/Icon-192.png',
+      tag: msg.tag,
+      data: { url: msg.url || './' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data && event.notification.data.url) || './', self.registration.scope).href;
+  event.waitUntil(
+    (async () => {
+      const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of open) {
+        if (c.url.startsWith(self.registration.scope) && 'focus' in c) return c.focus();
+      }
+      return self.clients.openWindow(url);
+    })(),
+  );
+});

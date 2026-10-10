@@ -71,7 +71,7 @@ class _InstallCardState extends State<InstallCard> {
             child: Image.network('icons/Icon-192.png', width: 42, height: 42, errorBuilder: (_, __, ___) => const Icon(Icons.install_mobile_rounded)),
           ),
           title: const Text('Mets l\'appli sur ton téléphone'),
-          subtitle: const Text('Une icône GDC sur l\'écran d\'accueil, comme une vraie appli'),
+          subtitle: const Text('Une icône GDC sur l\'écran d\'accueil, avec les notifications des répétitions'),
           onTap: _howTo,
           trailing: IconButton(
             tooltip: 'Masquer',
