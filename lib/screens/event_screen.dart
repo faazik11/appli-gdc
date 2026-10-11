@@ -10,6 +10,7 @@ import '../widgets/event_widgets.dart';
 import '../widgets/library_links.dart';
 import '../widgets/ui.dart';
 import 'event_form_screen.dart';
+import 'outfits_screen.dart';
 
 /// Détail d'un événement : infos, réponses des membres et appel (chefs et admins).
 class EventScreen extends StatefulWidget {
@@ -171,6 +172,18 @@ class _EventScreenState extends State<EventScreen> {
                       child: ListTile(leading: const Icon(Icons.notes_rounded), title: Text(_event.notes!)),
                     ),
                   ..._librarySection(theme),
+                  if (!_event.isRehearsal && widget.work != null)
+                    EventOutfitSection(
+                      key: ValueKey('tenue-${_event.outfitId}'),
+                      eventId: _event.id,
+                      outfitId: _event.outfitId,
+                      work: widget.work!,
+                      canEdit: _canEdit,
+                      onChanged: () {
+                        _changed = true;
+                        _refresh();
+                      },
+                    ),
                   if (!_event.isRehearsal && widget.work != null)
                     EventGearSection(eventId: _event.id, work: widget.work!, canEdit: _canEdit),
                   if (_event.isUpcoming) ...[

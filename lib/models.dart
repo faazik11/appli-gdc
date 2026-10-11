@@ -203,6 +203,9 @@ class ChoirEvent {
   final List<String> songIds;
   final String? bookletId;
 
+  /// Tenue du jour.
+  final String? outfitId;
+
   /// Totaux calculés côté serveur ; un simple membre ne reçoit que sa propre ligne de participants.
   final EventSummary? summary;
 
@@ -217,13 +220,14 @@ class ChoirEvent {
     this.participants = const [],
     this.songIds = const [],
     this.bookletId,
+    this.outfitId,
     this.summary,
   });
 
   ChoirEvent withSummary(EventSummary? s, {List<Participant>? participants}) =>
       copyWith(participants: participants, summary: s);
 
-  ChoirEvent copyWith({List<Participant>? participants, EventSummary? summary}) => ChoirEvent(
+  ChoirEvent copyWith({List<Participant>? participants, EventSummary? summary, String? outfitId}) => ChoirEvent(
         id: id,
         kind: kind,
         title: title,
@@ -234,6 +238,7 @@ class ChoirEvent {
         participants: participants ?? this.participants,
         songIds: songIds,
         bookletId: bookletId,
+        outfitId: outfitId ?? this.outfitId,
         summary: summary ?? this.summary,
       );
 
@@ -268,6 +273,7 @@ class ChoirEvent {
         notes: m['notes'] as String?,
         songIds: (m['song_ids'] as List?)?.cast<String>() ?? const [],
         bookletId: m['booklet_id'] as String?,
+        outfitId: m['outfit_id'] as String?,
         participants: ((m['event_participants'] as List?) ?? const [])
             .map((e) => Participant.fromMap(Map<String, dynamic>.from(e as Map)))
             .toList(),
@@ -327,6 +333,44 @@ class EquipmentItem {
         quantity: (m['quantity'] as num?)?.toInt() ?? 1,
         notes: m['notes'] as String?,
         photoPath: m['photo_path'] as String?,
+      );
+}
+
+/// Tenue réutilisable (ex. « Tenue noire ») : photo d'ensemble et éléments, chacun avec sa petite photo.
+class Outfit {
+  final String id;
+  final String name;
+  final String? notes;
+  final String? photoPath;
+  final List<OutfitItem> items;
+
+  const Outfit({required this.id, required this.name, this.notes, this.photoPath, this.items = const []});
+
+  factory Outfit.fromMap(Map<String, dynamic> m) => Outfit(
+        id: m['id'] as String,
+        name: m['name'] as String,
+        notes: m['notes'] as String?,
+        photoPath: m['photo_path'] as String?,
+        items: (((m['outfit_items'] as List?) ?? const [])
+                .map((e) => OutfitItem.fromMap(Map<String, dynamic>.from(e as Map)))
+                .toList())
+          ..sort((a, b) => a.position.compareTo(b.position)),
+      );
+}
+
+class OutfitItem {
+  final String? id;
+  final String label;
+  final String? photoPath;
+  final int position;
+
+  const OutfitItem({this.id, required this.label, this.photoPath, this.position = 0});
+
+  factory OutfitItem.fromMap(Map<String, dynamic> m) => OutfitItem(
+        id: m['id'] as String?,
+        label: m['label'] as String,
+        photoPath: m['photo_path'] as String?,
+        position: (m['position'] as num?)?.toInt() ?? 0,
       );
 }
 

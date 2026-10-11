@@ -36,6 +36,12 @@ abstract class WorkBackend {
   Future<void> setEventGear(String eventId, Map<String, int> quantities);
   Future<void> setGearPacked(String eventId, String equipmentId, bool packed);
 
+  /// Tenues réutilisables et tenue du jour d'un événement.
+  Future<List<Outfit>> outfits();
+  Future<void> saveOutfit({String? id, required String name, String? notes, String? photoPath, required List<OutfitItem> items});
+  Future<void> deleteOutfit(Outfit outfit);
+  Future<void> setEventOutfit(String eventId, String? outfitId);
+
   Future<List<Recording>> recordings();
   Future<void> saveRecording({
     required DateTime recordedAt,
@@ -147,6 +153,39 @@ class SupabaseWork implements WorkBackend {
       .update({'packed': packed})
       .eq('event_id', eventId)
       .eq('equipment_id', equipmentId);
+
+  @override
+  Future<List<Outfit>> outfits() async {
+    final rows = await Offline.rows('tenues', () => _db.from('outfits').select('*, outfit_items(*)').order('name'));
+    return rows.map(Outfit.fromMap).toList();
+  }
+
+  @override
+  Future<void> saveOutfit(
+      {String? id, required String name, String? notes, String? photoPath, required List<OutfitItem> items}) async {
+    final data = {'name': name.trim(), 'notes': _clean(notes), 'photo_path': photoPath};
+    final outfitId = id == null
+        ? (await _db.from('outfits').insert(data).select('id').single())['id'] as String
+        : (await _db.from('outfits').update(data).eq('id', id).select('id').single())['id'] as String;
+    await _db.from('outfit_items').delete().eq('outfit_id', outfitId);
+    if (items.isNotEmpty) {
+      await _db.from('outfit_items').insert([
+        for (final (i, item) in items.indexed)
+          {'outfit_id': outfitId, 'label': item.label.trim(), 'photo_path': item.photoPath, 'position': i},
+      ]);
+    }
+  }
+
+  @override
+  Future<void> deleteOutfit(Outfit outfit) async {
+    await _db.from('outfits').delete().eq('id', outfit.id);
+    final photos = [outfit.photoPath, for (final i in outfit.items) i.photoPath].whereType<String>().toList();
+    if (photos.isNotEmpty) await _repo.deleteFiles(WorkBackend.photosBucket, photos);
+  }
+
+  @override
+  Future<void> setEventOutfit(String eventId, String? outfitId) =>
+      _db.from('events').update({'outfit_id': outfitId}).eq('id', eventId);
 
   @override
   Future<List<Recording>> recordings() async {

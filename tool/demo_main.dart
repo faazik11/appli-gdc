@@ -240,6 +240,7 @@ class _DemoAgenda implements AgendaBackend {
   Future<List<ChoirEvent>> events() async => [
         for (final e in _events)
           e.copyWith(
+            outfitId: _demoEventOutfits[e.id],
             participants: memberId == null
                 ? e.participants
                 : [
@@ -331,7 +332,42 @@ class _DemoAgenda implements AgendaBackend {
 final _work = _DemoWork();
 
 /// Inventaire et enregistrements en mémoire pour la démo.
+/// Tenue du jour des événements de la démo (partagée entre l'agenda et l'atelier).
+final Map<String, String> _demoEventOutfits = {'e3': 'o1'};
+
 class _DemoWork implements WorkBackend {
+  final List<Outfit> _outfits = [
+    const Outfit(id: 'o1', name: 'Tenue noire', photoPath: 'tenue_noire.jpg', notes: 'Chemise bien repassée.', items: [
+      OutfitItem(label: 'Chemise noire', photoPath: 'chemise.jpg'),
+      OutfitItem(label: 'Pantalon noir', photoPath: 'pantalon.jpg'),
+      OutfitItem(label: 'Ceinture noire', photoPath: 'ceinture.jpg'),
+      OutfitItem(label: 'Chaussettes noires', photoPath: 'chaussettes.jpg'),
+      OutfitItem(label: 'Chaussures noires', photoPath: 'chaussures.jpg'),
+    ]),
+    const Outfit(id: 'o2', name: 'Tenue blanche (mariages)', items: [
+      OutfitItem(label: 'Chemise blanche'),
+      OutfitItem(label: 'Pantalon beige'),
+    ]),
+  ];
+
+  @override
+  Future<List<Outfit>> outfits() async => _outfits;
+
+  @override
+  Future<void> saveOutfit(
+      {String? id, required String name, String? notes, String? photoPath, required List<OutfitItem> items}) async {
+    final o = Outfit(id: id ?? 'o${DateTime.now().millisecondsSinceEpoch}', name: name, notes: notes, photoPath: photoPath, items: items);
+    final i = _outfits.indexWhere((x) => x.id == o.id);
+    i < 0 ? _outfits.add(o) : _outfits[i] = o;
+  }
+
+  @override
+  Future<void> deleteOutfit(Outfit outfit) async => _outfits.removeWhere((o) => o.id == outfit.id);
+
+  @override
+  Future<void> setEventOutfit(String eventId, String? outfitId) async =>
+      outfitId == null ? _demoEventOutfits.remove(eventId) : _demoEventOutfits[eventId] = outfitId;
+
   final _cats = [
     const EquipmentCategory(id: 'c1', name: 'Enceintes'),
     const EquipmentCategory(id: 'c2', name: 'Micros'),

@@ -9,19 +9,21 @@ import '../services/file_store.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/ui.dart';
+import 'outfits_screen.dart';
 
 /// Photo gardée sur l'appareil après le premier affichage (visible hors connexion).
 class StoredPhoto extends StatelessWidget {
   final String? path;
   final BoxFit fit;
+  final IconData icon;
 
-  const StoredPhoto(this.path, {super.key, this.fit = BoxFit.cover});
+  const StoredPhoto(this.path, {super.key, this.fit = BoxFit.cover, this.icon = Icons.inventory_2_outlined});
 
   @override
   Widget build(BuildContext context) {
     final placeholder = Container(
       color: AppColors.aubergine.withValues(alpha: 0.08),
-      child: const Center(child: Icon(Icons.inventory_2_outlined, size: 36, color: AppColors.aubergineLight)),
+      child: Center(child: Icon(icon, size: 36, color: AppColors.aubergineLight)),
     );
     if (path == null) return placeholder;
     return FutureBuilder<Uint8List>(
@@ -128,6 +130,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
       appBar: AppBar(
         title: const Text('Inventaire'),
         actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.checkroom_rounded),
+            label: const Text('Tenues'),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => OutfitsScreen(backend: widget.backend, canEdit: widget.canEdit))),
+          ),
           if (widget.canEdit)
             IconButton(
               tooltip: 'Gérer les catégories',
