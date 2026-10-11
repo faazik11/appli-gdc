@@ -120,7 +120,7 @@ class AnnouncementsSectionState extends State<AnnouncementsSection> {
                   Text(a.body, style: theme.textTheme.bodyLarge),
                   const SizedBox(height: 4),
                   Text(
-                    '${_names[a.authorId] ?? 'Chef de chœur'} · ${DateFormat('d MMM, HH:mm', 'fr_FR').format(a.createdAt)}',
+                    '${_names[a.authorId] ?? 'Référent'} · ${DateFormat('d MMM, HH:mm', 'fr_FR').format(a.createdAt)}',
                     style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ]),

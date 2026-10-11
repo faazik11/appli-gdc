@@ -198,7 +198,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
                   title: 'Aucun enregistrement',
                   message: widget.canEdit
                       ? 'Appuie sur « Enregistrer » au début de la répétition : elle sera datée automatiquement et disponible ici pour tout le groupe.'
-                      : 'Les répétitions enregistrées par le chef de chœur apparaîtront ici.',
+                      : 'Les répétitions enregistrées par les référents apparaîtront ici.',
                 )
               else
                 for (final g in groups.entries) ...[

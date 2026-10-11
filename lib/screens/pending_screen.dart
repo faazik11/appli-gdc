@@ -29,7 +29,7 @@ class PendingScreen extends StatelessWidget {
                     Text('Bienvenue !', style: theme.textTheme.headlineMedium),
                     const SizedBox(height: 10),
                     Text(
-                      'Ton compte attend la validation du chef de chœur. '
+                      'Ton compte attend la validation d\'un responsable du groupe. '
                       'Tu auras accès aux chants dès qu\'il sera validé.',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),

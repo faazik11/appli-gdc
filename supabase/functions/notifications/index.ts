@@ -117,7 +117,7 @@ async function reminders(force: boolean) {
       const answered = new Set(parts.filter((p) => p.response).map((p) => p.profile_id));
       sent += await send(all.filter((m) => !answered.has(m)), {
         title: `${eventName(e)} : tu viens ?`,
-        body: `${dayLabel(start)} à ${timeLabel(start)}. Réponds dans l'agenda pour que le chef de chœur puisse s'organiser.`,
+        body: `${dayLabel(start)} à ${timeLabel(start)}. Réponds dans l'agenda pour que les référents puissent s'organiser.`,
         tag: `relance-${e.id}`,
       });
     }

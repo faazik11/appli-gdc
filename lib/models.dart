@@ -16,7 +16,7 @@ String roleToDb(MemberRole role) => switch (role) {
 
 String roleLabel(MemberRole role) => switch (role) {
       MemberRole.admin => 'Admin',
-      MemberRole.chef => 'Chef de chœur',
+      MemberRole.chef => 'Référent',
       MemberRole.membre => 'Membre',
       MemberRole.enAttente => 'En attente',
     };

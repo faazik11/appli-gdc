@@ -124,7 +124,7 @@ class MemberStatsView extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
         child: Text(
-          'Présences d\'après l\'appel du chef de chœur. Réponses : événements où « Présent », « Peut-être » ou « Absent » a été indiqué.',
+          'Présences d\'après l\'appel fait par les référents. Réponses : événements où « Présent », « Peut-être » ou « Absent » a été indiqué.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ),

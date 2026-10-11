@@ -141,7 +141,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         const SizedBox(height: 4),
                         Text(
                           _signUp
-                              ? 'Ton compte sera validé par le chef de chœur.'
+                              ? 'Ton compte sera validé par un responsable du groupe.'
                               : 'Content de te revoir !',
                           style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
