@@ -61,6 +61,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
   }
 
   Future<void> _load() async {
+    await _recoverInterrupted();
     final pending = await PendingRecordings.list();
     if (mounted) setState(() => _pending = pending);
     try {
@@ -73,6 +74,37 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  /// Enregistrement coupé net (appli fermée par le téléphone) : le son gardé au fur et à mesure
+  /// est récupéré puis envoyé comme un enregistrement normal.
+  static bool _recovering = false;
+
+  Future<void> _recoverInterrupted() async {
+    if (_recovering) return;
+    _recovering = true;
+    try {
+      final drafts = await Recorder.drafts();
+      var recovered = 0;
+      for (final d in drafts) {
+        final parts = await Recorder.draftFiles(d.id);
+        final kept = await keepRecordedParts(parts, mime: d.mime, notes: 'Récupéré après une coupure de l\'appli.');
+        await Recorder.clearDraft(d.id);
+        for (final p in kept) {
+          recovered++;
+          try {
+            await PendingRecordings.send(widget.backend, p);
+          } catch (_) {}
+        }
+      }
+      if (recovered > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Un enregistrement coupé en cours de route a été récupéré.')));
+      }
+    } catch (_) {
+    } finally {
+      _recovering = false;
     }
   }
 
@@ -392,6 +424,8 @@ class _RecorderScreenState extends State<RecorderScreen> {
   ChoirEvent? _event;
   double _level = 0;
   String? _error;
+  RecorderStatus _status = const RecorderStatus();
+  bool _healing = false;
 
   @override
   void initState() {
@@ -432,7 +466,11 @@ class _RecorderScreenState extends State<RecorderScreen> {
       ..reset()
       ..start();
     _ticker = Timer.periodic(const Duration(milliseconds: 150), (_) {
-      if (mounted) setState(() => _level = _state == _State.recording ? _recorder.level() : 0);
+      if (!mounted) return;
+      setState(() {
+        _level = _state == _State.recording ? _recorder.level() : 0;
+        _status = _recorder.status();
+      });
     });
     setState(() {
       _state = _State.recording;
@@ -456,32 +494,32 @@ class _RecorderScreenState extends State<RecorderScreen> {
     setState(() => _state = _State.saving);
     _ticker?.cancel();
     _watch.stop();
-    final bytes = await _recorder.stop();
+    final sessionId = _recorder.sessionId;
+    final lost = _recorder.status().lostSeconds;
+    final parts = await _recorder.stop();
     WakelockPlus.disable().catchError((_) {});
-    if (bytes == null || bytes.isEmpty) {
+    if (parts.every((p) => p.bytes.isEmpty)) {
       setState(() {
         _state = _State.ready;
         _error = 'L\'enregistrement est vide.';
       });
       return;
     }
-    final start = _startedAt ?? DateTime.now();
     // 1. Gardé sur le téléphone d'abord : rien n'est perdu si le réseau coupe.
-    final pending = await PendingRecordings.keep(
-      bytes,
-      PendingRecording(
-        key: 'enregistrement-${start.millisecondsSinceEpoch}',
-        recordedAt: start,
-        eventId: _event?.id,
-        notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-        mimeType: _mime,
-        durationSeconds: _watch.elapsed.inSeconds,
-      ),
+    final kept = await keepRecordedParts(
+      parts,
+      mime: _mime,
+      eventId: _event?.id,
+      notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+      durationSeconds: (_watch.elapsed.inSeconds - lost).clamp(1, 1 << 30),
     );
+    if (sessionId != null) await Recorder.clearDraft(sessionId);
     // 2. Puis envoyé pour tout le groupe.
     String message;
     try {
-      await PendingRecordings.send(widget.backend, pending);
+      for (final p in kept) {
+        await PendingRecordings.send(widget.backend, p);
+      }
       message = 'Répétition enregistrée et disponible pour tout le groupe.';
     } catch (_) {
       message = 'Pas de connexion : l\'enregistrement est gardé sur ce téléphone. Envoie-le depuis la page Répétitions.';
@@ -489,6 +527,60 @@ class _RecorderScreenState extends State<RecorderScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     Navigator.pop(context, true);
+  }
+
+  Future<void> _heal() async {
+    setState(() => _healing = true);
+    final ok = await _recorder.heal();
+    if (!mounted) return;
+    setState(() {
+      _healing = false;
+      _status = _recorder.status();
+      _error = ok ? null : 'Le micro ne répond plus. Arrête l\'enregistrement (ce qui a été enregistré est gardé) puis relance-le.';
+    });
+  }
+
+  /// Avertit quand le téléphone a coupé l'enregistrement (écran verrouillé, appel, appli quittée).
+  Widget _cutBanner() {
+    final s = _status;
+    final active = _state == _State.recording || _state == _State.paused;
+    if (!active || (s.ok && s.cuts == 0)) return const SizedBox.shrink();
+    final minutes = (s.lostSeconds / 60).round();
+    final lost = s.lostSeconds < 60 ? 'moins d\'une minute' : '$minutes min';
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: s.ok ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE65100).withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: s.ok ? Colors.white24 : Colors.orangeAccent),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.warning_amber_rounded, color: s.ok ? AppColors.goldLight : Colors.orangeAccent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              s.ok
+                  ? 'Le téléphone a coupé l\'enregistrement ${s.cuts == 1 ? 'une fois' : '${s.cuts} fois'} '
+                      '($lost sans son). Il a repris : le reste est bien enregistré.'
+                  : 'Enregistrement coupé par le téléphone (écran verrouillé ou appli quittée). '
+                      'Touche « Reprendre » pour continuer.',
+              style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.white),
+            ),
+          ),
+        ]),
+        if (!s.ok) ...[
+          const SizedBox(height: 10),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: Colors.orangeAccent, foregroundColor: Colors.black),
+            onPressed: _healing ? null : _heal,
+            icon: const Icon(Icons.mic_rounded),
+            label: const Text('Reprendre l\'enregistrement'),
+          ),
+        ],
+      ]),
+    );
   }
 
   String _clock(Duration d) {
@@ -592,13 +684,14 @@ class _RecorderScreenState extends State<RecorderScreen> {
                       ? 'L\'enregistrement n\'est pas disponible sur cet appareil.'
                       : switch (_state) {
                           _State.ready => 'Pose le téléphone au milieu du groupe puis appuie pour démarrer.',
-                          _State.recording => 'Enregistrement en cours · garde l\'appli ouverte (l\'écran reste allumé)',
+                          _State.recording => 'Enregistrement en cours · laisse l\'appli ouverte et ne verrouille pas le téléphone',
                           _State.paused => 'En pause',
                           _State.saving => '',
                         },
                   textAlign: TextAlign.center,
                   style: TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: Colors.white.withValues(alpha: 0.75)),
                 ),
+                _cutBanner(),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent)),
@@ -628,4 +721,31 @@ class _RecorderScreenState extends State<RecorderScreen> {
       ),
     );
   }
+}
+
+/// Garde sur le téléphone les fichiers d'un enregistrement (plusieurs s'il a été coupé).
+Future<List<PendingRecording>> keepRecordedParts(
+  List<RecordedPart> parts, {
+  required String mime,
+  String? eventId,
+  String? notes,
+  int? durationSeconds,
+}) async {
+  final kept = <PendingRecording>[];
+  for (final (i, part) in parts.indexed) {
+    if (part.bytes.isEmpty) continue;
+    kept.add(await PendingRecordings.keep(
+      part.bytes,
+      PendingRecording(
+        key: 'enregistrement-${part.startedAt.millisecondsSinceEpoch}-$i',
+        recordedAt: parts.first.startedAt,
+        eventId: eventId,
+        title: parts.length > 1 ? '${recordingTitle(parts.first.startedAt, null)} · partie ${i + 1}' : null,
+        notes: notes,
+        mimeType: mime,
+        durationSeconds: parts.length == 1 && durationSeconds != null ? durationSeconds : part.seconds,
+      ),
+    ));
+  }
+  return kept;
 }
