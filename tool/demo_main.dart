@@ -366,6 +366,36 @@ class _DemoWork implements WorkBackend {
     const EquipmentItem(id: 'i6', name: 'Table Yamaha MG10XU', categoryId: 'c4', quantity: 1, photoPath: 'table.jpg'),
     const EquipmentItem(id: 'i7', name: 'Rallonge 10 m', quantity: 4),
   ];
+  final Map<String, List<EventGear>> _gear = {
+    'e3': const [
+      EventGear(equipmentId: 'i1', quantity: 2, packed: true),
+      EventGear(equipmentId: 'i3', quantity: 4, packed: true),
+      EventGear(equipmentId: 'i5', quantity: 4),
+      EventGear(equipmentId: 'i6'),
+      EventGear(equipmentId: 'i7', quantity: 2),
+    ],
+  };
+
+  @override
+  Future<List<EventGear>> eventGear(String eventId) async => _gear[eventId] ?? const [];
+
+  @override
+  Future<void> setEventGear(String eventId, Map<String, int> quantities) async {
+    final old = {for (final g in _gear[eventId] ?? const <EventGear>[]) g.equipmentId: g};
+    _gear[eventId] = [
+      for (final e in quantities.entries)
+        EventGear(equipmentId: e.key, quantity: e.value, packed: old[e.key]?.packed ?? false),
+    ];
+  }
+
+  @override
+  Future<void> setGearPacked(String eventId, String equipmentId, bool packed) async {
+    _gear[eventId] = [
+      for (final g in _gear[eventId] ?? const <EventGear>[])
+        g.equipmentId == equipmentId ? EventGear(equipmentId: equipmentId, quantity: g.quantity, packed: packed) : g,
+    ];
+  }
+
   late final _recs = [
     for (final (i, d) in [2, 5, 9, 12, 16, 33].indexed)
       Recording(

@@ -3,7 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models.dart';
 import '../services/agenda.dart';
+import '../services/workshop.dart';
 import '../theme.dart';
+import '../widgets/event_gear.dart';
 import '../widgets/event_widgets.dart';
 import '../widgets/library_links.dart';
 import '../widgets/ui.dart';
@@ -17,6 +19,7 @@ class EventScreen extends StatefulWidget {
   final List<Profile> members;
   final List<String> locations;
   final LibraryLinks? links;
+  final WorkBackend? work;
 
   const EventScreen({
     super.key,
@@ -26,6 +29,7 @@ class EventScreen extends StatefulWidget {
     required this.members,
     this.locations = const [],
     this.links,
+    this.work,
   });
 
   @override
@@ -167,6 +171,8 @@ class _EventScreenState extends State<EventScreen> {
                       child: ListTile(leading: const Icon(Icons.notes_rounded), title: Text(_event.notes!)),
                     ),
                   ..._librarySection(theme),
+                  if (!_event.isRehearsal && widget.work != null)
+                    EventGearSection(eventId: _event.id, work: widget.work!, canEdit: _canEdit),
                   if (_event.isUpcoming) ...[
                     const SizedBox(height: 12),
                     Text('Tu viens ?', style: theme.textTheme.titleMedium),

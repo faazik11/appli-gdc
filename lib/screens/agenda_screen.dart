@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/agenda.dart';
+import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/event_widgets.dart';
 import '../widgets/library_links.dart';
@@ -28,10 +29,11 @@ class AgendaData {
 
 /// Ouvre le détail d'un événement ; renvoie true si quelque chose a changé.
 Future<bool> openEvent(BuildContext context, AgendaBackend backend, Profile profile, ChoirEvent e, AgendaData data,
-    [LibraryLinks? links]) async {
+    [LibraryLinks? links, WorkBackend? work]) async {
   final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
     builder: (_) => EventScreen(
       links: links,
+      work: work,
       backend: backend,
       event: e,
       profile: profile,
@@ -49,8 +51,9 @@ class AgendaPanel extends StatefulWidget {
   final Profile profile;
   final AgendaBackend backend;
   final LibraryLinks? links;
+  final WorkBackend? work;
 
-  const AgendaPanel({super.key, required this.profile, required this.backend, this.links});
+  const AgendaPanel({super.key, required this.profile, required this.backend, this.links, this.work});
 
   @override
   State<AgendaPanel> createState() => _AgendaPanelState();
@@ -198,7 +201,7 @@ class _AgendaPanelState extends State<AgendaPanel> {
                       links: widget.links,
                       myId: widget.profile.id,
                       onOpen: (e) async {
-                        if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links)) _load();
+                        if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links, widget.work)) _load();
                       },
                     )
                   else
@@ -257,7 +260,7 @@ class _AgendaPanelState extends State<AgendaPanel> {
             event: e,
             myId: widget.profile.id,
             onTap: () async {
-              if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links)) _load();
+              if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links, widget.work)) _load();
             },
             onRespond: upcoming ? (r) => _respond(e, r) : null,
           ),
@@ -272,9 +275,10 @@ class NextEventsSection extends StatefulWidget {
   final AgendaBackend backend;
   final VoidCallback onOpenAgenda;
   final LibraryLinks? links;
+  final WorkBackend? work;
 
   const NextEventsSection(
-      {super.key, required this.profile, required this.backend, required this.onOpenAgenda, this.links});
+      {super.key, required this.profile, required this.backend, required this.onOpenAgenda, this.links, this.work});
 
   @override
   State<NextEventsSection> createState() => _NextEventsSectionState();
@@ -364,7 +368,7 @@ class _NextEventsSectionState extends State<NextEventsSection> {
             event: e,
             myId: widget.profile.id,
             onTap: () async {
-              if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links)) _load();
+              if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links, widget.work)) _load();
             },
             onRespond: (r) async {
               await widget.backend.setResponse(e.id, widget.profile.id, r);

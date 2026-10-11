@@ -330,6 +330,21 @@ class EquipmentItem {
       );
 }
 
+/// Matériel à emporter pour un événement, coché une fois chargé.
+class EventGear {
+  final String equipmentId;
+  final int quantity;
+  final bool packed;
+
+  const EventGear({required this.equipmentId, this.quantity = 1, this.packed = false});
+
+  factory EventGear.fromMap(Map<String, dynamic> m) => EventGear(
+        equipmentId: m['equipment_id'] as String,
+        quantity: (m['quantity'] as num?)?.toInt() ?? 1,
+        packed: m['packed'] as bool? ?? false,
+      );
+}
+
 /// Enregistrement d'une répétition, daté automatiquement, avec les points abordés.
 class Recording {
   final String id;

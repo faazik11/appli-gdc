@@ -301,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
             : switch (_tab) {
                 _Tab.home => _homeTab(wide),
                 _Tab.songs => _songsTab(),
-                _Tab.agenda => AgendaPanel(profile: widget.profile, backend: _agenda, links: _links),
+                _Tab.agenda => AgendaPanel(profile: widget.profile, backend: _agenda, links: _links, work: _work),
                 _Tab.booklets => _bookletsTab(wide),
                 _Tab.recordings => RecordingsScreen(backend: _work, agenda: _agenda, canEdit: _canEdit),
                 _Tab.inventory => InventoryScreen(backend: _work, canEdit: _canEdit),
@@ -433,6 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
               backend: _agenda,
               onOpenAgenda: () => setState(() => _tab = _Tab.agenda),
               links: _links,
+              work: _work,
             ),
             _shortcuts(),
             AnnouncementsSection(key: _announcementsKey, profile: widget.profile, backend: _agenda),

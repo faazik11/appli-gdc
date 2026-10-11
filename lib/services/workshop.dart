@@ -29,6 +29,13 @@ abstract class WorkBackend {
   });
   Future<void> deleteEquipment(EquipmentItem item);
 
+  /// Matériel à emporter pour un événement.
+  Future<List<EventGear>> eventGear(String eventId);
+
+  /// Remplace la liste (matériel → quantité) en gardant ce qui était déjà coché.
+  Future<void> setEventGear(String eventId, Map<String, int> quantities);
+  Future<void> setGearPacked(String eventId, String equipmentId, bool packed);
+
   Future<List<Recording>> recordings();
   Future<void> saveRecording({
     required DateTime recordedAt,
@@ -108,6 +115,38 @@ class SupabaseWork implements WorkBackend {
     await _db.from('equipment').delete().eq('id', item.id);
     if (item.photoPath != null) await _repo.deleteFiles(WorkBackend.photosBucket, [item.photoPath!]);
   }
+
+  @override
+  Future<List<EventGear>> eventGear(String eventId) async {
+    final rows = await Offline.rows(
+        'materiel-evenement-$eventId', () => _db.from('event_equipment').select().eq('event_id', eventId));
+    return rows.map(EventGear.fromMap).toList();
+  }
+
+  @override
+  Future<void> setEventGear(String eventId, Map<String, int> quantities) async {
+    final current = await _db.from('event_equipment').select('equipment_id').eq('event_id', eventId);
+    final removed = [
+      for (final r in current)
+        if (!quantities.containsKey(r['equipment_id'])) r['equipment_id'] as String,
+    ];
+    if (removed.isNotEmpty) {
+      await _db.from('event_equipment').delete().eq('event_id', eventId).inFilter('equipment_id', removed);
+    }
+    if (quantities.isNotEmpty) {
+      await _db.from('event_equipment').upsert(
+        [for (final e in quantities.entries) {'event_id': eventId, 'equipment_id': e.key, 'quantity': e.value}],
+        onConflict: 'event_id,equipment_id',
+      );
+    }
+  }
+
+  @override
+  Future<void> setGearPacked(String eventId, String equipmentId, bool packed) => _db
+      .from('event_equipment')
+      .update({'packed': packed})
+      .eq('event_id', eventId)
+      .eq('equipment_id', equipmentId);
 
   @override
   Future<List<Recording>> recordings() async {
