@@ -165,6 +165,8 @@ class _DemoAgenda implements AgendaBackend {
       id: 'pp1',
       kind: EventKind.prestation,
       title: 'Concert de la Saint-Michel',
+      songIds: const ['1', '3', '6', '4'],
+      notes: 'Très beau retour du public, Hymne à l\'amour redemandé.',
       startsAt: _d(-12, 19, 0),
       location: 'Cathédrale Saint-Just',
       participants: const [
@@ -173,6 +175,28 @@ class _DemoAgenda implements AgendaBackend {
         Participant(profileId: 'p3', response: EventResponse.present, attended: true),
         Participant(profileId: 'p4', response: EventResponse.absent, attended: false),
       ],
+    ),
+    ChoirEvent(
+      id: 'pp2',
+      kind: EventKind.prestation,
+      title: 'Mariage de Lina et Youssef',
+      songIds: const ['2', '7', '4'],
+      startsAt: _d(-40, 17, 30),
+      location: 'Domaine de l\'Hospitalet',
+      participants: const [
+        Participant(profileId: 'p1', response: EventResponse.present, attended: true),
+        Participant(profileId: 'p2', response: EventResponse.present, attended: true),
+        Participant(profileId: 'p3', response: EventResponse.absent, attended: false),
+        Participant(profileId: 'p4', response: EventResponse.present, attended: true),
+      ],
+    ),
+    ChoirEvent(
+      id: 'pp3',
+      kind: EventKind.prestation,
+      title: 'Fête du Mawlid',
+      songIds: const ['2', '7'],
+      startsAt: _d(-300, 20, 0),
+      location: 'Mosquée de Narbonne',
     ),
     ChoirEvent(
       id: 'e1',

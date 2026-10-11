@@ -5,6 +5,7 @@ import '../services/agenda.dart';
 import '../theme.dart';
 import '../widgets/event_widgets.dart';
 import '../widgets/library_links.dart';
+import '../widgets/prestation_history.dart';
 import '../widgets/ui.dart';
 import 'attendance_screen.dart';
 import 'event_form_screen.dart';
@@ -191,7 +192,17 @@ class _AgendaPanelState extends State<AgendaPanel> {
                         ),
                     ]),
                   ),
-                  ..._eventList(data, data.past.where((e) => _pastKind == null || e.kind == _pastKind).toList(), upcoming: false),
+                  if (_pastKind == EventKind.prestation)
+                    PrestationHistory(
+                      events: data.past.where((e) => !e.isRehearsal).toList(),
+                      links: widget.links,
+                      myId: widget.profile.id,
+                      onOpen: (e) async {
+                        if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links)) _load();
+                      },
+                    )
+                  else
+                    ..._eventList(data, data.past.where((e) => _pastKind == null || e.kind == _pastKind).toList(), upcoming: false),
                 ],
                 _View.attendance => [
                   _canEdit
