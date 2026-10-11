@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
+import '../platform/pick_file.dart';
 import '../services/agenda.dart';
 import '../services/file_store.dart';
 import '../services/offline.dart';
@@ -173,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _importBooklet() async {
-    final file = await FilePicker.pickFile(type: FileType.custom, allowedExtensions: ['pdf']);
+    final file = await pickOneFile(type: FileType.custom, extensions: ['pdf']);
     if (file == null || !mounted) return;
     final title = await _askText(context, 'Titre du livret', initial: file.name.replaceAll('.pdf', ''));
     if (title == null || title.isEmpty) return;

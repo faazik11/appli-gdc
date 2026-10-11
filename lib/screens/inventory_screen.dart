@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import '../platform/pick_file.dart';
 import '../services/file_store.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
@@ -394,7 +395,7 @@ class _EquipmentFormScreenState extends State<EquipmentFormScreen> {
   bool _saving = false;
 
   Future<void> _pickPhoto() async {
-    final f = await FilePicker.pickFile(type: FileType.image);
+    final f = await pickOneFile(type: FileType.image);
     if (f == null) return;
     final bytes = await shrinkImage(await f.readAsBytes(), 1600);
     setState(() => _newPhoto = bytes);

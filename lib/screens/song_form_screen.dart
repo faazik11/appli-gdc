@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../models.dart';
+import '../platform/pick_file.dart';
 import '../services/repository.dart';
 
 /// Ajout ou modification d'un chant (réservé aux chefs de chœur et admins).
@@ -169,7 +170,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
               pickedName: _pdf?.name,
               hasExisting: _keepPdf,
               onPick: () async {
-                final f = await FilePicker.pickFile(type: FileType.custom, allowedExtensions: ['pdf']);
+                final f = await pickOneFile(type: FileType.custom, extensions: ['pdf']);
                 if (f != null) setState(() => _pdf = f);
               },
               onClear: () => setState(() {
@@ -183,7 +184,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
               pickedName: _audio?.name,
               hasExisting: _keepAudio,
               onPick: () async {
-                final f = await FilePicker.pickFile(type: FileType.audio);
+                final f = await pickOneFile(type: FileType.audio);
                 if (f != null) setState(() => _audio = f);
               },
               onClear: () => setState(() {

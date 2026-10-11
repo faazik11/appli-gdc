@@ -17,6 +17,7 @@ dependencies:
   youtube_player_iframe: any
   just_audio: any
   file_picker: any
+  file_picker_web: ^4.0.1
   url_launcher: any
   intl: any
   wakelock_plus: ^1.8.1
