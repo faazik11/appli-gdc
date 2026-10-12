@@ -90,6 +90,29 @@ window.gdcFiles = {
     return URL.createObjectURL(new Blob([bytes], { type }));
   },
 
+  // Enregistre un fichier sur l'appareil : partage (téléphone : « Enregistrer dans Fichiers »)
+  // ou téléchargement classique (ordinateur). Renvoie 'ok' ou 'annule'.
+  async saveFile(bytes, name, type) {
+    const file = new File([bytes], name, { type });
+    const touch = window.matchMedia('(pointer: coarse)').matches;
+    if (touch && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] });
+        return 'ok';
+      } catch (e) {
+        if (e.name === 'AbortError') return 'annule';
+      }
+    }
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(file);
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+    return 'ok';
+  },
+
   close(id) {
     docs.get(id)?.destroy();
     docs.delete(id);

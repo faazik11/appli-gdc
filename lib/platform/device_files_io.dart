@@ -36,6 +36,13 @@ Future<void> deviceDelete(String key) async {
 
 Future<Uint8List> shrinkImage(Uint8List bytes, int maxSide) async => bytes;
 
+/// Enregistre un fichier dans le dossier Téléchargements (ou Documents) de l'appareil.
+Future<bool> saveToDevice(Uint8List bytes, String name, String mimeType) async {
+  final dir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+  await File('${dir.path}/$name').writeAsBytes(bytes, flush: true);
+  return true;
+}
+
 /// Adresse locale pour lire des octets (audio) sans les retélécharger.
 Future<String?> localUrl(Uint8List bytes, String mimeType) async {
   try {
