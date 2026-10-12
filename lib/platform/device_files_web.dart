@@ -16,6 +16,7 @@ extension type _GdcFiles(JSObject _) implements JSObject {
   external String objectUrl(JSUint8Array bytes, String type);
   external JSPromise<JSBoolean> remove(String key);
   external JSPromise<JSUint8Array> shrinkImage(JSUint8Array bytes, int maxSide);
+  external JSPromise<JSString> saveFile(JSUint8Array bytes, String name, String type);
 }
 
 extension type _Info(JSObject _) implements JSObject {
@@ -60,6 +61,14 @@ Future<Uint8List> shrinkImage(Uint8List bytes, int maxSide) async {
   } catch (_) {
     return bytes;
   }
+}
+
+/// Enregistre un fichier sur l'appareil (téléchargement, ou « Enregistrer dans Fichiers » sur téléphone).
+/// Renvoie false si la personne a annulé.
+Future<bool> saveToDevice(Uint8List bytes, String name, String mimeType) async {
+  final files = _files;
+  if (files == null) return false;
+  return (await files.saveFile(bytes.toJS, name, mimeType).toDart).toDart != 'annule';
 }
 
 /// Adresse locale pour lire des octets (audio) sans les retélécharger.

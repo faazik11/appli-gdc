@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../services/repository.dart';
 import '../theme.dart';
+import '../widgets/backup_card.dart';
 import '../widgets/ui.dart';
 
 /// Validation des nouveaux comptes et attribution des rôles (admin uniquement).
@@ -89,6 +90,11 @@ class _MembersPanelState extends State<MembersPanel> {
                     ),
                   ),
                 ),
+              const SectionHeader('Sauvegarde'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: const BackupCard(),
+              ),
             ]),
           ),
         ]);
