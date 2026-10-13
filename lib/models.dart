@@ -62,6 +62,9 @@ class Song {
   final String? notes;
   final DateTime? createdAt;
 
+  /// Note de départ enregistrée au micro (bucket « enregistrements »).
+  final String? noteAudioPath;
+
   const Song({
     required this.id,
     required this.title,
@@ -72,6 +75,7 @@ class Song {
     this.tags = const [],
     this.notes,
     this.createdAt,
+    this.noteAudioPath,
   });
 
   bool get hasPdf => lyricsPdfPath != null;
@@ -88,6 +92,7 @@ class Song {
         tags: (m['tags'] as List?)?.cast<String>() ?? const [],
         notes: m['notes'] as String?,
         createdAt: m['created_at'] == null ? null : DateTime.parse(m['created_at'] as String),
+        noteAudioPath: m['note_audio_path'] as String?,
       );
 }
 

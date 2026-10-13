@@ -15,6 +15,7 @@ class Repository {
   static const lyricsBucket = 'lyrics';
   static const audioBucket = 'audio';
   static const bookletsBucket = 'booklets';
+  static const notesBucket = 'enregistrements';
 
   Future<Profile?> currentProfile() async {
     final user = _db.auth.currentUser;
@@ -77,7 +78,14 @@ class Repository {
     if (song.audioPath != null) {
       await _db.storage.from(audioBucket).remove([song.audioPath!]);
     }
+    if (song.noteAudioPath != null) {
+      await _db.storage.from(notesBucket).remove([song.noteAudioPath!]);
+    }
   }
+
+  /// Enregistre (ou retire, avec null) la note de départ d'un chant.
+  Future<void> setSongNote(String songId, String? path) =>
+      _db.from('songs').update({'note_audio_path': path}).eq('id', songId);
 
   Future<List<Booklet>> booklets() async {
     final rows = await Offline.rows(
