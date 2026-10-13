@@ -2,12 +2,14 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../models.dart';
 import '../platform/pick_file.dart';
 import '../services/file_store.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
+import '../widgets/stand_icons.dart';
 import '../widgets/ui.dart';
 import 'outfits_screen.dart';
 
@@ -185,7 +187,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             Padding(
                               padding: const EdgeInsets.only(left: 8),
                               child: ChoiceChip(
-                                avatar: Icon(categoryIcon(c.name), size: 18),
+                                avatar: categoryIcon(c.name),
                                 showCheckmark: false,
                                 label: Text(c.name),
                                 selected: _filter == c.id,
@@ -714,15 +716,28 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
 }
 
 /// Icône d'une catégorie d'inventaire, devinée d'après son nom (catégories créées par les membres).
-IconData categoryIcon(String name) {
+Widget categoryIcon(String name, {double size = 18}) {
+  if (_isStand(name)) return StandIcon(size: size);
+  if (_isInstrument(name)) return FaIcon(FontAwesomeIcons.drum, size: size - 2);
+  return Icon(_categoryIconData(name), size: size);
+}
+
+String _plain(String name) {
   const accents = {'à': 'a', 'â': 'a', 'ç': 'c', 'é': 'e', 'è': 'e', 'ê': 'e', 'î': 'i', 'ô': 'o', 'û': 'u', 'ù': 'u'};
-  final n = name.toLowerCase().split('').map((ch) => accents[ch] ?? ch).join();
+  return name.toLowerCase().split('').map((ch) => accents[ch] ?? ch).join();
+}
+
+bool _isStand(String name) => ['pied', 'support', 'perche'].any(_plain(name).contains);
+
+bool _isInstrument(String name) =>
+    ['instrument', 'piano', 'clavier', 'percu', 'darbouka', 'tambour'].any(_plain(name).contains);
+
+IconData _categoryIconData(String name) {
+  final n = _plain(name);
   bool has(List<String> words) => words.any(n.contains);
-  if (has(['pied', 'support', 'perche'])) return Icons.mic_external_on_rounded;
   if (has(['micro'])) return Icons.mic_rounded;
   if (has(['enceinte', 'sono', 'haut-parleur', 'baffle', 'retour'])) return Icons.speaker_rounded;
   if (has(['cable', 'rallonge', 'multiprise', 'adaptateur'])) return Icons.cable_rounded;
-  if (has(['instrument', 'piano', 'clavier', 'percu', 'darbouka', 'tambour'])) return Icons.piano_rounded;
   if (has(['vetement', 'vestimentaire', 'tenue', 'costume', 'habit'])) return Icons.checkroom_rounded;
   if (has(['stockage', 'rangement', 'caisse', 'valise', 'sac', 'flight', 'housse', 'boite'])) return Icons.inventory_2_rounded;
   if (has(['lumiere', 'eclairage', 'projecteur', 'lampe'])) return Icons.lightbulb_rounded;
