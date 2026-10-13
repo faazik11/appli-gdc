@@ -368,6 +368,30 @@ class _DemoWork implements WorkBackend {
   Future<void> setEventOutfit(String eventId, String? outfitId) async =>
       outfitId == null ? _demoEventOutfits.remove(eventId) : _demoEventOutfits[eventId] = outfitId;
 
+  final List<Garment> _garments = [
+    const Garment(id: 'g1', name: 'Chemise noire', photoPath: 'chemise.jpg'),
+    const Garment(id: 'g2', name: 'Chemise blanche'),
+    const Garment(id: 'g3', name: 'Pantalon noir', photoPath: 'pantalon.jpg'),
+    const Garment(id: 'g4', name: 'Ceinture noire', photoPath: 'ceinture.jpg'),
+    const Garment(id: 'g5', name: 'Chaussettes noires', photoPath: 'chaussettes.jpg'),
+    const Garment(id: 'g6', name: 'Chaussettes blanches'),
+    const Garment(id: 'g7', name: 'Chaussures noires', photoPath: 'chaussures.jpg'),
+  ];
+
+  @override
+  Future<List<Garment>> garments() async => [..._garments]..sort((a, b) => a.name.compareTo(b.name));
+
+  @override
+  Future<Garment> saveGarment({String? id, required String name, String? photoPath}) async {
+    final g = Garment(id: id ?? 'g${DateTime.now().millisecondsSinceEpoch}', name: name.trim(), photoPath: photoPath);
+    final i = _garments.indexWhere((x) => x.id == g.id);
+    i < 0 ? _garments.add(g) : _garments[i] = g;
+    return g;
+  }
+
+  @override
+  Future<void> deleteGarment(Garment garment) async => _garments.removeWhere((g) => g.id == garment.id);
+
   final _cats = [
     const EquipmentCategory(id: 'c1', name: 'Enceintes'),
     const EquipmentCategory(id: 'c2', name: 'Micros'),
