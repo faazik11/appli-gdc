@@ -358,20 +358,43 @@ class Outfit {
       );
 }
 
+/// Vêtement de la liste (chemise blanche, chaussettes noires…), avec sa photo.
+class Garment {
+  final String id;
+  final String name;
+  final String? photoPath;
+
+  const Garment({required this.id, required this.name, this.photoPath});
+
+  factory Garment.fromMap(Map<String, dynamic> m) => Garment(
+        id: m['id'] as String,
+        name: m['name'] as String,
+        photoPath: m['photo_path'] as String?,
+      );
+}
+
+/// Élément d'une tenue : un vêtement de la liste (son nom et sa photo viennent du vêtement).
 class OutfitItem {
   final String? id;
+  final String? garmentId;
   final String label;
   final String? photoPath;
   final int position;
 
-  const OutfitItem({this.id, required this.label, this.photoPath, this.position = 0});
+  const OutfitItem({this.id, this.garmentId, required this.label, this.photoPath, this.position = 0});
 
-  factory OutfitItem.fromMap(Map<String, dynamic> m) => OutfitItem(
-        id: m['id'] as String?,
-        label: m['label'] as String,
-        photoPath: m['photo_path'] as String?,
-        position: (m['position'] as num?)?.toInt() ?? 0,
-      );
+  factory OutfitItem.fromGarment(Garment g) => OutfitItem(garmentId: g.id, label: g.name, photoPath: g.photoPath);
+
+  factory OutfitItem.fromMap(Map<String, dynamic> m) {
+    final g = m['garments'] is Map ? Map<String, dynamic>.from(m['garments'] as Map) : null;
+    return OutfitItem(
+      id: m['id'] as String?,
+      garmentId: m['garment_id'] as String?,
+      label: (g?['name'] ?? m['label']) as String,
+      photoPath: (g == null ? m['photo_path'] : g['photo_path']) as String?,
+      position: (m['position'] as num?)?.toInt() ?? 0,
+    );
+  }
 }
 
 /// Matériel à emporter pour un événement, coché une fois chargé.

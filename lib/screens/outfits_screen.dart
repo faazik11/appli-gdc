@@ -40,7 +40,8 @@ class OutfitView extends StatelessWidget {
       if (outfit.photoPath != null)
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: AspectRatio(aspectRatio: compact ? 16 / 9 : 4 / 3, child: StoredPhoto(outfit.photoPath, icon: _outfitIcon)),
+          child: AspectRatio(
+              aspectRatio: compact ? 16 / 9 : 4 / 3, child: StoredPhoto(outfit.photoPath, icon: _outfitIcon)),
         ),
       if (outfit.notes != null) ...[
         const SizedBox(height: 10),
@@ -86,7 +87,9 @@ class OutfitsScreen extends StatefulWidget {
   State<OutfitsScreen> createState() => _OutfitsScreenState();
 }
 
-class _OutfitsScreenState extends State<OutfitsScreen> {
+class _OutfitsScreenState extends State<OutfitsScreen> with SingleTickerProviderStateMixin {
+  late final _tabs = TabController(length: 2, vsync: this)..addListener(() => setState(() {}));
+  final _garmentsKey = GlobalKey<GarmentsListState>();
   List<Outfit>? _outfits;
   String? _error;
 
@@ -94,6 +97,12 @@ class _OutfitsScreenState extends State<OutfitsScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -126,54 +135,316 @@ class _OutfitsScreenState extends State<OutfitsScreen> {
     if (changed == true) _load();
   }
 
+  Widget _outfitList(BuildContext context) {
+    final theme = Theme.of(context);
+    final outfits = _outfits;
+    if (outfits == null) {
+      return Center(
+          child: _error == null ? const CircularProgressIndicator() : Text('Chargement impossible.\n$_error'));
+    }
+    if (outfits.isEmpty) {
+      return EmptyState(
+        icon: _outfitIcon,
+        title: 'Aucune tenue',
+        message: widget.canEdit
+            ? 'Crée une tenue avec sa photo et ses vêtements, puis choisis-la pour une prestation.'
+            : 'Les tenues du groupe apparaîtront ici.',
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(padding: const EdgeInsets.fromLTRB(20, 12, 20, 100), children: [
+        for (final o in outfits)
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _open(o),
+              child: Row(children: [
+                SizedBox(width: 96, height: 96, child: StoredPhoto(o.photoPath, icon: _outfitIcon)),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(o.name, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(o.items.map((i) => i.label).join(' · '),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  ]),
+                ),
+                const Icon(Icons.chevron_right_rounded),
+                const SizedBox(width: 8),
+              ]),
+            ),
+          ),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final onGarments = _tabs.index == 1;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Tenues'),
+        bottom: TabBar(controller: _tabs, tabs: const [Tab(text: 'Tenues'), Tab(text: 'Vêtements')]),
+      ),
+      floatingActionButton: widget.canEdit
+          ? FloatingActionButton.extended(
+              icon: const Icon(Icons.add_rounded),
+              label: Text(onGarments ? 'Nouveau vêtement' : 'Nouvelle tenue'),
+              onPressed: () => onGarments ? _garmentsKey.currentState?.edit() : _edit(),
+            )
+          : null,
+      body: TabBarView(controller: _tabs, children: [
+        _outfitList(context),
+        GarmentsList(
+          key: _garmentsKey,
+          backend: widget.backend,
+          canEdit: widget.canEdit,
+          // Un vêtement modifié change aussi l'affichage des tenues
+          onChanged: _load,
+        ),
+      ]),
+    );
+  }
+}
+
+/// Fenêtre de création ou modification d'un vêtement (nom + photo). Renvoie le vêtement enregistré,
+/// ou null si rien n'a changé ; [deleted] est appelé si le vêtement a été supprimé.
+Future<Garment?> editGarment(BuildContext context, WorkBackend backend, {Garment? garment, VoidCallback? deleted}) {
+  return showModalBottomSheet<Garment>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => _GarmentSheet(backend: backend, garment: garment, deleted: deleted),
+  );
+}
+
+class _GarmentSheet extends StatefulWidget {
+  final WorkBackend backend;
+  final Garment? garment;
+  final VoidCallback? deleted;
+
+  const _GarmentSheet({required this.backend, this.garment, this.deleted});
+
+  @override
+  State<_GarmentSheet> createState() => _GarmentSheetState();
+}
+
+class _GarmentSheetState extends State<_GarmentSheet> {
+  late final _name = TextEditingController(text: widget.garment?.name);
+  Uint8List? _photo;
+  bool _busy = false;
+
+  Future<void> _pick() async {
+    final f = await pickOneFile(type: FileType.image);
+    if (f == null) return;
+    final b = await shrinkImage(await f.readAsBytes(), 1200);
+    if (mounted) setState(() => _photo = b);
+  }
+
+  Future<void> _save() async {
+    if (_name.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Donne un nom au vêtement (ex. Chemise blanche).')));
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final old = widget.garment?.photoPath;
+      var path = old;
+      if (_photo != null) {
+        path = await widget.backend.upload(WorkBackend.photosBucket, 'vetement.jpg', _photo!, 'image/jpeg');
+        await FileStore.instance.keep(WorkBackend.photosBucket, path, _photo!);
+      }
+      final g = await widget.backend.saveGarment(id: widget.garment?.id, name: _name.text, photoPath: path);
+      if (old != null && old != path) await widget.backend.deleteFile(WorkBackend.photosBucket, old).catchError((_) {});
+      if (mounted) Navigator.pop(context, g);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : $e')));
+      }
+    }
+  }
+
+  Future<void> _delete() async {
+    final g = widget.garment!;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text('Supprimer « ${g.name} » ? Il sera aussi retiré des tenues qui l\'utilisent.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Supprimer')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      await widget.backend.deleteGarment(g);
+      widget.deleted?.call();
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Suppression impossible : $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final outfits = _outfits;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Tenues')),
-      floatingActionButton: widget.canEdit
-          ? FloatingActionButton.extended(
-              icon: const Icon(Icons.add_rounded), label: const Text('Nouvelle tenue'), onPressed: () => _edit())
-          : null,
-      body: outfits == null
-          ? Center(child: _error == null ? const CircularProgressIndicator() : Text('Chargement impossible.\n$_error'))
-          : outfits.isEmpty
-              ? EmptyState(
-                  icon: _outfitIcon,
-                  title: 'Aucune tenue',
-                  message: widget.canEdit
-                      ? 'Crée une tenue avec sa photo et ses éléments (chemise, pantalon…), puis choisis-la pour une prestation.'
-                      : 'Les tenues du groupe apparaîtront ici.',
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(padding: const EdgeInsets.fromLTRB(20, 12, 20, 100), children: [
-                    for (final o in outfits)
-                      Card(
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          onTap: () => _open(o),
-                          child: Row(children: [
-                            SizedBox(width: 96, height: 96, child: StoredPhoto(o.photoPath, icon: _outfitIcon)),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text(o.name, style: theme.textTheme.titleMedium),
-                                const SizedBox(height: 4),
-                                Text(o.items.map((i) => i.label).join(' · '),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                              ]),
-                            ),
-                            const Icon(Icons.chevron_right_rounded),
-                            const SizedBox(width: 8),
-                          ]),
-                        ),
-                      ),
-                  ]),
+    final hasPhoto = _photo != null || widget.garment?.photoPath != null;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text(widget.garment == null ? 'Nouveau vêtement' : 'Modifier le vêtement', style: theme.textTheme.titleLarge),
+        const SizedBox(height: 14),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: _busy ? null : _pick,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(width: 110, height: 110, child: _Photo(widget.garment?.photoPath, fresh: _photo)),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              TextField(
+                controller: _name,
+                autofocus: widget.garment == null,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(labelText: 'Nom', hintText: 'Ex. Chemise blanche'),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _busy ? null : _pick,
+                  icon: const Icon(Icons.photo_camera_rounded),
+                  label: Text(hasPhoto ? 'Changer la photo' : 'Ajouter une photo'),
                 ),
+              ),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 18),
+        Row(children: [
+          if (widget.garment != null)
+            TextButton.icon(
+              onPressed: _busy ? null : _delete,
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: const Text('Supprimer'),
+              style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+            ),
+          const Spacer(),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: _busy
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Enregistrer'),
+          ),
+        ]),
+      ]),
+    );
+  }
+}
+
+/// Grille des vêtements : photo et nom ; les référents ajoutent, modifient et suppriment.
+class GarmentsList extends StatefulWidget {
+  final WorkBackend backend;
+  final bool canEdit;
+  final VoidCallback onChanged;
+
+  const GarmentsList({super.key, required this.backend, required this.canEdit, required this.onChanged});
+
+  @override
+  State<GarmentsList> createState() => GarmentsListState();
+}
+
+class GarmentsListState extends State<GarmentsList> {
+  List<Garment>? _garments;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final g = await widget.backend.garments();
+      if (mounted) setState(() => _garments = g);
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  Future<void> edit([Garment? g]) async {
+    var changed = false;
+    final saved = await editGarment(context, widget.backend, garment: g, deleted: () => changed = true);
+    if (saved != null || changed) {
+      await _load();
+      widget.onChanged();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final garments = _garments;
+    if (garments == null) {
+      return Center(
+          child: _error == null ? const CircularProgressIndicator() : Text('Chargement impossible.\n$_error'));
+    }
+    if (garments.isEmpty) {
+      return EmptyState(
+        icon: _outfitIcon,
+        title: 'Aucun vêtement',
+        message: widget.canEdit
+            ? 'Ajoute les vêtements (chemise blanche, chaussettes noires…) avec leur photo, puis compose les tenues avec.'
+            : 'Les vêtements des tenues apparaîtront ici.',
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: LayoutBuilder(builder: (context, c) {
+        final perRow = c.maxWidth > 900 ? 6 : (c.maxWidth > 600 ? 4 : 3);
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: perRow, mainAxisSpacing: 14, crossAxisSpacing: 12, childAspectRatio: 0.78),
+          itemCount: garments.length,
+          itemBuilder: (context, i) {
+            final g = garments[i];
+            return InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: widget.canEdit ? () => edit(g) : null,
+              child: Column(children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: StoredPhoto(g.photoPath, icon: _outfitIcon),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(g.name,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+              ]),
+            );
+          },
+        );
+      }),
     );
   }
 }
@@ -231,14 +502,6 @@ class OutfitDetailScreen extends StatelessWidget {
   }
 }
 
-class _ItemDraft {
-  final TextEditingController label;
-  String? photoPath;
-  Uint8List? fresh;
-
-  _ItemDraft(String text, this.photoPath) : label = TextEditingController(text: text);
-}
-
 /// Création ou modification d'une tenue.
 class OutfitFormScreen extends StatefulWidget {
   final WorkBackend backend;
@@ -251,23 +514,90 @@ class OutfitFormScreen extends StatefulWidget {
 }
 
 class _OutfitFormScreenState extends State<OutfitFormScreen> {
-  static const _suggestions = [
-    'Chemise noire',
-    'Pantalon noir',
-    'Ceinture noire',
-    'Chaussettes noires',
-    'Chaussures noires',
-    'Veste',
-    'Cravate',
-    'Foulard',
-  ];
-
   late final _name = TextEditingController(text: widget.outfit?.name);
   late final _notes = TextEditingController(text: widget.outfit?.notes);
   late final String? _photoPath = widget.outfit?.photoPath;
   Uint8List? _photo;
-  late final List<_ItemDraft> _items = [for (final i in widget.outfit?.items ?? const <OutfitItem>[]) _ItemDraft(i.label, i.photoPath)];
+  late final List<OutfitItem> _items = [...?widget.outfit?.items];
+  List<Garment>? _garments;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGarments();
+  }
+
+  Future<void> _loadGarments() async {
+    try {
+      final g = await widget.backend.garments();
+      if (mounted) setState(() => _garments = g);
+    } catch (_) {
+      if (mounted) setState(() => _garments = const []);
+    }
+  }
+
+  /// Choix des vêtements de la tenue dans la liste (on peut en créer un au passage).
+  Future<void> _chooseGarments() async {
+    final chosen = {for (final i in _items) i.garmentId}.whereType<String>().toSet();
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheet) => StatefulBuilder(builder: (sheet, setSheet) {
+        final garments = _garments ?? const <Garment>[];
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 12, 8),
+                child: Row(children: [
+                  Expanded(child: Text('Vêtements de la tenue', style: Theme.of(context).textTheme.titleLarge)),
+                  FilledButton(onPressed: () => Navigator.pop(sheet, chosen), child: const Text('Valider')),
+                ]),
+              ),
+              Flexible(
+                child: ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 12), children: [
+                  for (final g in garments)
+                    CheckboxListTile(
+                      value: chosen.contains(g.id),
+                      onChanged: (v) => setSheet(() => v == true ? chosen.add(g.id) : chosen.remove(g.id)),
+                      secondary: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(width: 48, height: 48, child: StoredPhoto(g.photoPath, icon: _outfitIcon)),
+                      ),
+                      title: Text(g.name),
+                    ),
+                  ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.add_rounded)),
+                    title: const Text('Nouveau vêtement'),
+                    onTap: () async {
+                      final g = await editGarment(context, widget.backend);
+                      if (g == null) return;
+                      await _loadGarments();
+                      setSheet(() => chosen.add(g.id));
+                    },
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        );
+      }),
+    );
+    if (result == null || !mounted) return;
+    final byId = {for (final g in _garments ?? const <Garment>[]) g.id: g};
+    setState(() {
+      // On garde l'ordre déjà choisi, les nouveaux vêtements vont à la fin
+      _items.removeWhere((i) => i.garmentId != null && !result.contains(i.garmentId));
+      final present = _items.map((i) => i.garmentId).toSet();
+      for (final id in result.where((id) => !present.contains(id))) {
+        final g = byId[id];
+        if (g != null) _items.add(OutfitItem.fromGarment(g));
+      }
+    });
+  }
 
   Future<Uint8List?> _pick() async {
     final f = await pickOneFile(type: FileType.image);
@@ -289,22 +619,22 @@ class _OutfitFormScreenState extends State<OutfitFormScreen> {
 
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Donne un nom à la tenue (ex. Tenue noire).')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Donne un nom à la tenue (ex. Tenue noire).')));
       return;
     }
     setState(() => _saving = true);
     try {
       final photo = await _upload(_photo, _photoPath);
-      final items = <OutfitItem>[];
-      for (final d in _items) {
-        if (d.label.text.trim().isEmpty) continue;
-        items.add(OutfitItem(label: d.label.text.trim(), photoPath: await _upload(d.fresh, d.photoPath)));
-      }
-      await widget.backend.saveOutfit(
-          id: widget.outfit?.id, name: _name.text, notes: _notes.text, photoPath: photo, items: items);
-      // Photos remplacées ou retirées : on ne les garde pas en ligne.
-      final kept = {photo, for (final i in items) i.photoPath};
-      final old = [widget.outfit?.photoPath, for (final i in widget.outfit?.items ?? const <OutfitItem>[]) i.photoPath];
+      await widget.backend
+          .saveOutfit(id: widget.outfit?.id, name: _name.text, notes: _notes.text, photoPath: photo, items: _items);
+      // Photos remplacées ou retirées : on ne les garde pas en ligne (celles des vêtements restent).
+      final kept = {photo, for (final i in _items) i.photoPath};
+      final old = [
+        widget.outfit?.photoPath,
+        for (final i in widget.outfit?.items ?? const <OutfitItem>[])
+          if (i.garmentId == null) i.photoPath,
+      ];
       for (final p in old.whereType<String>().where((p) => !kept.contains(p))) {
         await widget.backend.deleteFile(WorkBackend.photosBucket, p).catchError((_) {});
       }
@@ -320,7 +650,6 @@ class _OutfitFormScreenState extends State<OutfitFormScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final used = _items.map((i) => i.label.text.trim().toLowerCase()).toSet();
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.outfit == null ? 'Nouvelle tenue' : 'Modifier la tenue'),
@@ -376,61 +705,53 @@ class _OutfitFormScreenState extends State<OutfitFormScreen> {
               minLines: 1,
               maxLines: 4,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Remarque (facultatif)', hintText: 'Ex. Chemise bien repassée'),
+              decoration:
+                  const InputDecoration(labelText: 'Remarque (facultatif)', hintText: 'Ex. Chemise bien repassée'),
             ),
             const SizedBox(height: 20),
-            Text('Éléments de la tenue', style: theme.textTheme.titleMedium),
-            Text('Une petite photo par élément, pour comprendre la tenue d\'un coup d\'œil.',
+            Text('Vêtements de la tenue', style: theme.textTheme.titleMedium),
+            Text('Choisis-les dans la liste des vêtements (onglet Vêtements), chacun avec sa photo.',
                 style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(height: 10),
-            for (final (i, d) in _items.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(children: [
-                  InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () async {
-                      final b = await _pick();
-                      if (b != null) setState(() => d.fresh = b);
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(width: 64, height: 64, child: _Photo(d.photoPath, fresh: d.fresh)),
-                    ),
+            ReorderableListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              onReorderItem: (from, to) => setState(() => _items.insert(to, _items.removeAt(from))),
+              children: [
+                for (final (i, item) in _items.indexed)
+                  Padding(
+                    key: ObjectKey(item),
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(children: [
+                      ReorderableDragStartListener(
+                        index: i,
+                        child: const Padding(
+                            padding: EdgeInsets.only(right: 8), child: Icon(Icons.drag_indicator_rounded)),
+                      ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(width: 56, height: 56, child: StoredPhoto(item.photoPath, icon: _outfitIcon)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(item.label, style: theme.textTheme.bodyLarge)),
+                      IconButton(
+                        tooltip: 'Retirer de la tenue',
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => setState(() => _items.removeAt(i)),
+                      ),
+                    ]),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: d.label,
-                      textCapitalization: TextCapitalization.sentences,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(hintText: 'Ex. Chemise noire'),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Retirer',
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => setState(() => _items.removeAt(i)),
-                  ),
-                ]),
-              ),
+              ],
+            ),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Ajouter un élément'),
-                onPressed: () => setState(() => _items.add(_ItemDraft('', null))),
+                label: const Text('Choisir les vêtements'),
+                onPressed: _garments == null ? null : _chooseGarments,
               ),
             ),
-            const SizedBox(height: 4),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final s in _suggestions.where((s) => !used.contains(s.toLowerCase())))
-                ActionChip(
-                  avatar: const Icon(Icons.add_rounded, size: 16),
-                  label: Text(s),
-                  onPressed: () => setState(() => _items.add(_ItemDraft(s, null))),
-                ),
-            ]),
           ]),
         ),
       ]),

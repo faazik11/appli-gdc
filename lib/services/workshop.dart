@@ -42,6 +42,13 @@ abstract class WorkBackend {
   Future<void> deleteOutfit(Outfit outfit);
   Future<void> setEventOutfit(String eventId, String? outfitId);
 
+  /// Liste des vêtements dans laquelle on choisit les éléments des tenues.
+  Future<List<Garment>> garments();
+  Future<Garment> saveGarment({String? id, required String name, String? photoPath});
+
+  /// Retire aussi le vêtement des tenues qui l'utilisent.
+  Future<void> deleteGarment(Garment garment);
+
   Future<List<Recording>> recordings();
   Future<void> saveRecording({
     required DateTime recordedAt,
@@ -156,7 +163,7 @@ class SupabaseWork implements WorkBackend {
 
   @override
   Future<List<Outfit>> outfits() async {
-    final rows = await Offline.rows('tenues', () => _db.from('outfits').select('*, outfit_items(*)').order('name'));
+    final rows = await Offline.rows('tenues', () => _db.from('outfits').select('*, outfit_items(*, garments(*))').order('name'));
     return rows.map(Outfit.fromMap).toList();
   }
 
@@ -171,7 +178,13 @@ class SupabaseWork implements WorkBackend {
     if (items.isNotEmpty) {
       await _db.from('outfit_items').insert([
         for (final (i, item) in items.indexed)
-          {'outfit_id': outfitId, 'label': item.label.trim(), 'photo_path': item.photoPath, 'position': i},
+          {
+            'outfit_id': outfitId,
+            'garment_id': item.garmentId,
+            'label': item.label.trim(),
+            'photo_path': item.garmentId == null ? item.photoPath : null,
+            'position': i,
+          },
       ]);
     }
   }
@@ -179,13 +192,37 @@ class SupabaseWork implements WorkBackend {
   @override
   Future<void> deleteOutfit(Outfit outfit) async {
     await _db.from('outfits').delete().eq('id', outfit.id);
-    final photos = [outfit.photoPath, for (final i in outfit.items) i.photoPath].whereType<String>().toList();
+    // Les photos des vêtements restent : elles appartiennent à la liste des vêtements.
+    final photos = [outfit.photoPath, for (final i in outfit.items.where((i) => i.garmentId == null)) i.photoPath]
+        .whereType<String>()
+        .toList();
     if (photos.isNotEmpty) await _repo.deleteFiles(WorkBackend.photosBucket, photos);
   }
 
   @override
   Future<void> setEventOutfit(String eventId, String? outfitId) =>
       _db.from('events').update({'outfit_id': outfitId}).eq('id', eventId);
+
+  @override
+  Future<List<Garment>> garments() async {
+    final rows = await Offline.rows('vetements', () => _db.from('garments').select().order('name'));
+    return rows.map(Garment.fromMap).toList();
+  }
+
+  @override
+  Future<Garment> saveGarment({String? id, required String name, String? photoPath}) async {
+    final data = {'name': name.trim(), 'photo_path': photoPath};
+    final row = id == null
+        ? await _db.from('garments').insert(data).select().single()
+        : await _db.from('garments').update(data).eq('id', id).select().single();
+    return Garment.fromMap(row);
+  }
+
+  @override
+  Future<void> deleteGarment(Garment garment) async {
+    await _db.from('garments').delete().eq('id', garment.id);
+    if (garment.photoPath != null) await _repo.deleteFiles(WorkBackend.photosBucket, [garment.photoPath!]);
+  }
 
   @override
   Future<List<Recording>> recordings() async {
