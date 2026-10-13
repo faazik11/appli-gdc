@@ -7,6 +7,7 @@ import '../theme.dart';
 import '../widgets/event_widgets.dart';
 import '../widgets/library_links.dart';
 import '../widgets/prestation_history.dart';
+import '../widgets/swipe_cards.dart';
 import '../widgets/ui.dart';
 import 'attendance_screen.dart';
 import 'event_form_screen.dart';
@@ -306,17 +307,13 @@ class _NextEventsSectionState extends State<NextEventsSection> {
   Widget build(BuildContext context) {
     final data = _data;
     if (data == null) return const SizedBox.shrink();
-    final upcoming = data.upcoming;
-    final rehearsal = upcoming.where((e) => e.isRehearsal).firstOrNull;
-    final show = upcoming.where((e) => !e.isRehearsal).firstOrNull;
-    // Accueil allégé : seulement le prochain événement.
-    final items = ([rehearsal, show].whereType<ChoirEvent>().toList()..sort((a, b) => a.startsAt.compareTo(b.startsAt)))
-        .take(1)
-        .toList();
+    // Du plus proche au plus lointain : le premier est le prochain événement.
+    final items = data.upcoming..sort((a, b) => a.startsAt.compareTo(b.startsAt));
     // Rappel : les autres événements des 3 prochaines semaines sans réponse.
     final soon = DateTime.now().add(const Duration(days: 21));
-    final waiting = upcoming
-        .where((e) => !items.contains(e) && e.startsAt.isBefore(soon))
+    final waiting = items
+        .skip(1)
+        .where((e) => e.startsAt.isBefore(soon))
         .where((e) => e.participantOf(widget.profile.id)?.response == null)
         .length;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -361,20 +358,24 @@ class _NextEventsSectionState extends State<NextEventsSection> {
             ),
           ),
         ),
-      for (final e in items)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: EventCard(
-            event: e,
-            myId: widget.profile.id,
-            onTap: () async {
-              if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links, widget.work)) _load();
-            },
-            onRespond: (r) async {
-              await widget.backend.setResponse(e.id, widget.profile.id, r);
-              _load();
-            },
-          ),
+      if (items.isNotEmpty)
+        // Accueil allégé : une seule carte, on la fait glisser sur le côté pour voir les suivants.
+        SwipeCards(
+          count: items.length,
+          itemBuilder: (context, i) {
+            final e = items[i];
+            return EventCard(
+              event: e,
+              myId: widget.profile.id,
+              onTap: () async {
+                if (await openEvent(context, widget.backend, widget.profile, e, data, widget.links, widget.work)) _load();
+              },
+              onRespond: (r) async {
+                await widget.backend.setResponse(e.id, widget.profile.id, r);
+                _load();
+              },
+            );
+          },
         ),
     ]);
   }
