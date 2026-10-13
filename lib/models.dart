@@ -287,13 +287,19 @@ class Announcement {
   final String? authorId;
   final DateTime createdAt;
 
-  const Announcement({required this.id, required this.body, this.authorId, required this.createdAt});
+  /// Fin d'affichage sur l'accueil (null : jusqu'à ce qu'on la retire).
+  final DateTime? expiresAt;
+
+  const Announcement({required this.id, required this.body, this.authorId, required this.createdAt, this.expiresAt});
+
+  bool isActive([DateTime? now]) => expiresAt == null || expiresAt!.isAfter(now ?? DateTime.now());
 
   factory Announcement.fromMap(Map<String, dynamic> m) => Announcement(
         id: m['id'] as String,
         body: m['body'] as String,
         authorId: m['created_by'] as String?,
         createdAt: DateTime.parse(m['created_at'] as String).toLocal(),
+        expiresAt: m['expires_at'] == null ? null : DateTime.parse(m['expires_at'] as String).toLocal(),
       );
 }
 

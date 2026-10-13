@@ -304,8 +304,14 @@ class _DemoAgenda implements AgendaBackend {
   Future<List<Announcement>> announcements() async => [..._announcements];
 
   @override
-  Future<void> postAnnouncement(String body) async => _announcements.insert(
-      0, Announcement(id: 'a${_announcements.length + 1}', body: body, authorId: 'p1', createdAt: DateTime.now()));
+  Future<void> postAnnouncement(String body, {DateTime? expiresAt}) async => _announcements.insert(
+      0,
+      Announcement(
+          id: 'a${_announcements.length + 1}',
+          body: body,
+          authorId: 'p1',
+          createdAt: DateTime.now(),
+          expiresAt: expiresAt));
 
   @override
   Future<void> deleteAnnouncement(String id) async => _announcements.removeWhere((a) => a.id == id);

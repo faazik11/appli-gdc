@@ -11,6 +11,7 @@ import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/audio_player_bar.dart';
 import '../widgets/ui.dart';
+import 'tools_screen.dart';
 
 String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
@@ -141,6 +142,24 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
     if (changed == true) _load();
   }
 
+  /// Diapason et métronome, à portée de main pendant la répétition.
+  Widget _tools(BuildContext context) {
+    final tint = Theme.of(context).colorScheme.tertiary;
+    Widget chip(IconData icon, String label, int tab) => ActionChip(
+          avatar: Icon(icon, size: 18, color: tint),
+          label: Text(label),
+          onPressed: () =>
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => ToolsScreen(initialTab: tab))),
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: Wrap(spacing: 8, runSpacing: 8, children: [
+        chip(Icons.tune_rounded, 'Diapason', 0),
+        chip(Icons.timer_outlined, 'Métronome', 1),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -167,6 +186,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
           ContentWidth(
             maxWidth: 760,
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              _tools(context),
               if (_pending.isNotEmpty) ...[
                 const SectionHeader('À envoyer'),
                 for (final p in _pending)
