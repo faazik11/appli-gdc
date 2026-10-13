@@ -175,7 +175,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                         children: [
                           ChoiceChip(
-                            label: Text('Tout (${_items!.length})'),
+                            avatar: const Icon(Icons.apps_rounded, size: 18),
+                            showCheckmark: false,
+                            label: const Text('Tout'),
                             selected: _filter == null,
                             onSelected: (_) => setState(() => _filter = null),
                           ),
@@ -183,7 +185,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             Padding(
                               padding: const EdgeInsets.only(left: 8),
                               child: ChoiceChip(
-                                label: Text('${c.name} (${_items!.where((i) => i.categoryId == c.id).length})'),
+                                avatar: Icon(categoryIcon(c.name), size: 18),
+                                showCheckmark: false,
+                                label: Text(c.name),
                                 selected: _filter == c.id,
                                 onSelected: (_) => setState(() => _filter = c.id),
                               ),
@@ -707,4 +711,22 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
       ),
     );
   }
+}
+
+/// Icône d'une catégorie d'inventaire, devinée d'après son nom (catégories créées par les membres).
+IconData categoryIcon(String name) {
+  const accents = {'à': 'a', 'â': 'a', 'ç': 'c', 'é': 'e', 'è': 'e', 'ê': 'e', 'î': 'i', 'ô': 'o', 'û': 'u', 'ù': 'u'};
+  final n = name.toLowerCase().split('').map((ch) => accents[ch] ?? ch).join();
+  bool has(List<String> words) => words.any(n.contains);
+  if (has(['pied', 'support', 'perche'])) return Icons.mic_external_on_rounded;
+  if (has(['micro'])) return Icons.mic_rounded;
+  if (has(['enceinte', 'sono', 'haut-parleur', 'baffle', 'retour'])) return Icons.speaker_rounded;
+  if (has(['cable', 'rallonge', 'multiprise', 'adaptateur'])) return Icons.cable_rounded;
+  if (has(['instrument', 'piano', 'clavier', 'percu', 'darbouka', 'tambour'])) return Icons.piano_rounded;
+  if (has(['vetement', 'vestimentaire', 'tenue', 'costume', 'habit'])) return Icons.checkroom_rounded;
+  if (has(['stockage', 'rangement', 'caisse', 'valise', 'sac', 'flight', 'housse', 'boite'])) return Icons.inventory_2_rounded;
+  if (has(['lumiere', 'eclairage', 'projecteur', 'lampe'])) return Icons.lightbulb_rounded;
+  if (has(['appareil', 'console', 'table', 'mixage', 'ampli', 'electronique'])) return Icons.tune_rounded;
+  if (has(['ordinateur', 'tablette', 'ecran', 'informatique'])) return Icons.laptop_rounded;
+  return Icons.category_rounded;
 }
