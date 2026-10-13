@@ -20,7 +20,7 @@ abstract class AgendaBackend {
   });
   Future<void> deleteEvent(String id);
   Future<List<Announcement>> announcements();
-  Future<void> postAnnouncement(String body);
+  Future<void> postAnnouncement(String body, {DateTime? expiresAt});
   Future<void> deleteAnnouncement(String id);
   Future<void> setResponse(String eventId, String profileId, EventResponse response);
   Future<void> setAttended(String eventId, String profileId, bool? attended);
@@ -108,7 +108,9 @@ class SupabaseAgenda implements AgendaBackend {
   }
 
   @override
-  Future<void> postAnnouncement(String body) => _db.from('announcements').insert({'body': body.trim()});
+  Future<void> postAnnouncement(String body, {DateTime? expiresAt}) => _db
+      .from('announcements')
+      .insert({'body': body.trim(), 'expires_at': expiresAt?.toUtc().toIso8601String()});
 
   @override
   Future<void> deleteAnnouncement(String id) => _db.from('announcements').delete().eq('id', id);

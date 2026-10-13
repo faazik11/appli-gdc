@@ -28,7 +28,6 @@ import 'pdf_view_screen.dart';
 import 'recordings_screen.dart';
 import 'song_form_screen.dart';
 import 'song_screen.dart';
-import 'tools_screen.dart';
 
 class LibraryData {
   final List<Category> categories;
@@ -147,8 +146,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (saved == true) _load();
   }
 
-  void _openTools(int tab) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => ToolsScreen(initialTab: tab)));
 
   void _openConcert(Booklet b) {
     if (b.pdfPath == null) return;
@@ -419,8 +416,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ---------- Accueil ----------
 
-  final _announcementsKey = GlobalKey<AnnouncementsSectionState>();
-
   Widget _homeTab(bool wide) {
     return RefreshIndicator(
       onRefresh: _load,
@@ -428,6 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _hero(),
         ContentWidth(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            AnnouncementsSection(profile: widget.profile, backend: _agenda),
             NextEventsSection(
               profile: widget.profile,
               backend: _agenda,
@@ -435,8 +431,6 @@ class _HomeScreenState extends State<HomeScreen> {
               links: _links,
               work: _work,
             ),
-            _shortcuts(),
-            AnnouncementsSection(key: _announcementsKey, profile: widget.profile, backend: _agenda),
             const SizedBox(height: 8),
             const NotificationsCard(),
             const InstallCard(),
@@ -532,50 +526,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ]),
     );
   }
-
-  /// Raccourcis compacts : outils pour tous, créations du chef de chœur regroupées dans « Créer ».
-  Widget _shortcuts() {
-    final tint = Theme.of(context).colorScheme.tertiary;
-    Widget chip(IconData icon, String label, VoidCallback onTap) => ActionChip(
-          avatar: Icon(icon, size: 18, color: tint),
-          label: Text(label),
-          onPressed: onTap,
-        );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      child: Wrap(spacing: 8, runSpacing: 8, children: [
-        chip(Icons.tune_rounded, 'Diapason', () => _openTools(0)),
-        chip(Icons.timer_outlined, 'Métronome', () => _openTools(1)),
-        if (_canEdit)
-          MenuAnchor(
-            builder: (context, menu, _) => chip(Icons.add_rounded, 'Créer', () => menu.isOpen ? menu.close() : menu.open()),
-            menuChildren: [
-              MenuItemButton(
-                leadingIcon: const Icon(Icons.campaign_rounded),
-                onPressed: () => _announcementsKey.currentState?.write(),
-                child: const Text('Une annonce'),
-              ),
-              MenuItemButton(
-                leadingIcon: const Icon(Icons.library_add_rounded),
-                onPressed: () => _openSongForm(),
-                child: const Text('Un chant'),
-              ),
-              MenuItemButton(
-                leadingIcon: const Icon(Icons.auto_stories_rounded),
-                onPressed: () => _openBookletEditor(),
-                child: const Text('Un livret'),
-              ),
-              MenuItemButton(
-                leadingIcon: const Icon(Icons.upload_file_rounded),
-                onPressed: _importBooklet,
-                child: const Text('Importer un livret PDF'),
-              ),
-            ],
-          ),
-      ]),
-    );
-  }
-
 
   // ---------- Chants ----------
 
