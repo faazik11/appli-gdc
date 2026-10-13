@@ -403,6 +403,10 @@ class _DemoWork implements WorkBackend {
     const EquipmentCategory(id: 'c2', name: 'Micros'),
     const EquipmentCategory(id: 'c3', name: 'Pieds & supports'),
     const EquipmentCategory(id: 'c4', name: 'Table de mixage'),
+    const EquipmentCategory(id: 'c5', name: 'Câbles'),
+    const EquipmentCategory(id: 'c6', name: 'Instruments'),
+    const EquipmentCategory(id: 'c7', name: 'Stockage'),
+    const EquipmentCategory(id: 'c8', name: 'Vestimentaire'),
   ];
   final _items = [
     const EquipmentItem(
