@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
@@ -47,12 +46,13 @@ Future<int?> audioSeconds(Uint8List bytes, String type) async {
 /// Ouvre le sélecteur de fichiers et vérifie le fichier ; null (avec un message) s'il ne convient pas.
 Future<PickedAudio?> pickAudio(BuildContext context) async {
   void say(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
-  final f = await pickOneFile(type: FileType.audio);
+  // Sans filtre : sur iPhone, « audio/* » grise les fichiers récents de Dictaphone (.qta).
+  final f = await pickOneFile();
   if (f == null) return null;
   final dot = f.name.lastIndexOf('.');
   final ext = dot < 0 ? '' : f.name.substring(dot + 1).toLowerCase();
   if (!audioTypes.containsKey(ext)) {
-    if (context.mounted) say('Format non reconnu. Choisis un fichier audio (m4a, mp3, wav, aac, ogg, webm ou flac).');
+    if (context.mounted) say('Format non reconnu. Choisis un fichier audio (m4a, qta, mp3, wav, aac, ogg, webm ou flac).');
     return null;
   }
   final size = await f.length() ?? 0;
