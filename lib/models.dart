@@ -1,22 +1,29 @@
-enum MemberRole { admin, chef, membre, enAttente }
+/// `chef` est la valeur historique en base du Référent Chant Français.
+enum MemberRole { admin, responsable, chef, referentArabe, membre, enAttente }
 
 MemberRole roleFromDb(String value) => switch (value) {
       'admin' => MemberRole.admin,
+      'responsable' => MemberRole.responsable,
       'chef' => MemberRole.chef,
+      'referent_arabe' => MemberRole.referentArabe,
       'membre' => MemberRole.membre,
       _ => MemberRole.enAttente,
     };
 
 String roleToDb(MemberRole role) => switch (role) {
       MemberRole.admin => 'admin',
+      MemberRole.responsable => 'responsable',
       MemberRole.chef => 'chef',
+      MemberRole.referentArabe => 'referent_arabe',
       MemberRole.membre => 'membre',
       MemberRole.enAttente => 'en_attente',
     };
 
 String roleLabel(MemberRole role) => switch (role) {
       MemberRole.admin => 'Admin',
-      MemberRole.chef => 'Référent',
+      MemberRole.responsable => 'Responsable',
+      MemberRole.chef => 'Référent Chant Français',
+      MemberRole.referentArabe => 'Référent Chant Arabe',
       MemberRole.membre => 'Membre',
       MemberRole.enAttente => 'En attente',
     };
@@ -28,7 +35,7 @@ class Profile {
 
   const Profile({required this.id, required this.fullName, required this.role});
 
-  bool get isEditor => role == MemberRole.admin || role == MemberRole.chef;
+  bool get isEditor => isApproved && role != MemberRole.membre;
   bool get isAdmin => role == MemberRole.admin;
   bool get isApproved => role != MemberRole.enAttente;
 
