@@ -1,11 +1,13 @@
 /// `chef` est la valeur historique en base du Référent Chant Français.
-enum MemberRole { admin, responsable, chef, referentArabe, membre, enAttente }
+enum MemberRole { admin, responsable, chef, referentArabe, referentSono, referentArtistique, membre, enAttente }
 
 MemberRole roleFromDb(String value) => switch (value) {
       'admin' => MemberRole.admin,
       'responsable' => MemberRole.responsable,
       'chef' => MemberRole.chef,
       'referent_arabe' => MemberRole.referentArabe,
+      'referent_sono' => MemberRole.referentSono,
+      'referent_artistique' => MemberRole.referentArtistique,
       'membre' => MemberRole.membre,
       _ => MemberRole.enAttente,
     };
@@ -15,6 +17,8 @@ String roleToDb(MemberRole role) => switch (role) {
       MemberRole.responsable => 'responsable',
       MemberRole.chef => 'chef',
       MemberRole.referentArabe => 'referent_arabe',
+      MemberRole.referentSono => 'referent_sono',
+      MemberRole.referentArtistique => 'referent_artistique',
       MemberRole.membre => 'membre',
       MemberRole.enAttente => 'en_attente',
     };
@@ -24,6 +28,8 @@ String roleLabel(MemberRole role) => switch (role) {
       MemberRole.responsable => 'Responsable',
       MemberRole.chef => 'Référent Chant Français',
       MemberRole.referentArabe => 'Référent Chant Arabe',
+      MemberRole.referentSono => 'Référent Sono',
+      MemberRole.referentArtistique => 'Référent Artistique',
       MemberRole.membre => 'Membre',
       MemberRole.enAttente => 'En attente',
     };
