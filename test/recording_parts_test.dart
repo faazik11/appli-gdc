@@ -26,6 +26,7 @@ void main() {
   test('types et extensions des fichiers importés', () {
     expect(audioTypeOf('Nouvel enregistrement 3.M4A'), 'audio/mp4');
     expect(audioTypeOf('repet.mp3'), 'audio/mpeg');
+    expect(audioExtensionOf(audioTypeOf('Rue de la Paix.qta')), 'm4a');
     expect(audioExtensionOf('audio/mp4'), 'm4a');
     expect(audioExtensionOf('audio/mpeg'), 'mp3');
     expect(audioExtensionOf('audio/webm;codecs=opus'), 'webm');

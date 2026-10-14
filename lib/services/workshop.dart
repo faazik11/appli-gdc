@@ -347,6 +347,8 @@ const audioTypes = {
   'opus': 'audio/ogg',
   'webm': 'audio/webm',
   'flac': 'audio/flac',
+  // Dictaphone récent (iOS 18) : conteneur QuickTime avec du son AAC, lu comme un m4a.
+  'qta': 'audio/mp4',
 };
 
 /// Type d'un fichier d'après son nom (webm par défaut, comme les enregistrements faits dans l'appli).
