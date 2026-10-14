@@ -128,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
         category: _categoryOf(song),
         canEdit: _canEdit,
         onEdit: () => _openSongForm(song: song),
+        onChanged: _load,
       ),
     ));
   }

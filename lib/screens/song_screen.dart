@@ -8,6 +8,7 @@ import '../widgets/pdf_pages_view.dart';
 import '../services/repository.dart';
 import '../theme.dart';
 import '../widgets/audio_player_bar.dart';
+import '../widgets/song_note.dart';
 
 /// Écran de répétition : vidéo YouTube ou audio en haut, paroles en dessous.
 class SongScreen extends StatefulWidget {
@@ -17,6 +18,9 @@ class SongScreen extends StatefulWidget {
   final VoidCallback onEdit;
   final Future<String> Function(String bucket, String path)? signUrl;
 
+  /// Appelé quand la note du chant a été enregistrée ou supprimée.
+  final VoidCallback? onChanged;
+
   const SongScreen({
     super.key,
     required this.song,
@@ -24,6 +28,7 @@ class SongScreen extends StatefulWidget {
     required this.canEdit,
     required this.onEdit,
     this.signUrl,
+    this.onChanged,
   });
 
   @override
@@ -42,6 +47,7 @@ class _SongScreenState extends State<SongScreen> {
   // Mode « paroles seules » : choisi à la main, ou automatique en paysage sur téléphone.
   bool _focusRequested = false;
   bool _showControlsInLandscape = false;
+  late String? _notePath = widget.song.noteAudioPath;
 
   Future<String> _sign(String bucket, String path) =>
       (widget.signUrl ?? _repo.signedUrl)(bucket, path);
@@ -108,6 +114,22 @@ class _SongScreenState extends State<SongScreen> {
               child: Row(children: [
                 const BackButton(color: Colors.white),
                 const Spacer(),
+                if (_notePath != null || widget.canEdit)
+                  IconButton(
+                    tooltip: _notePath != null ? 'Note du chant' : 'Enregistrer la note',
+                    icon: Icon(_notePath != null ? Icons.music_note_rounded : Icons.mic_none_rounded),
+                    onPressed: () => showSongNote(
+                      context,
+                      songId: song.id,
+                      songTitle: song.title,
+                      notePath: _notePath,
+                      canEdit: widget.canEdit,
+                      onChanged: (path) {
+                        if (mounted) setState(() => _notePath = path);
+                        widget.onChanged?.call();
+                      },
+                    ),
+                  ),
                 if (song.youtubeUrl != null)
                   IconButton(
                     tooltip: 'Ouvrir dans YouTube',
