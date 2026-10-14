@@ -1,5 +1,5 @@
 // Envoi des notifications sur les téléphones (Web Push).
-// Appelé par la base : nouvel événement, nouvelle annonce, et toutes les heures pour les rappels.
+// Appelé par la base : nouvel événement, nouvelle annonce, tâches, et toutes les heures pour les rappels.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
@@ -89,6 +89,68 @@ async function onAnnouncement(id: string) {
   return send(who, { title: "Nouvelle annonce", body, tag: `annonce-${a.id}` });
 }
 
+const short = (s: string, n = 180) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+
+async function profileName(id: string | null) {
+  if (!id) return "Quelqu'un";
+  const { data } = await db.from("profiles").select("full_name").eq("id", id).single();
+  return (data?.full_name as string | undefined)?.trim().split(" ")[0] || "Quelqu'un";
+}
+
+/** Tâche confiée à une personne. */
+async function onTask(taskId: string, profileId: string) {
+  const { data: t } = await db.from("tasks").select("*").eq("id", taskId).single();
+  if (!t || t.created_by === profileId) return 0;
+  const due = t.due_date ? ` · avant le ${dayLabel(new Date(`${t.due_date}T12:00:00Z`))}` : "";
+  return send([profileId], {
+    title: `Tâche pour toi : ${t.title}`,
+    body: short(`${t.details?.trim() || "Ouvre l'appli pour voir le détail."}${due}`),
+    tag: `tache-${t.id}`,
+  });
+}
+
+/** « Fait » ou « Je ne peux pas » : prévient celui qui a confié la tâche. */
+async function onTaskStatus(taskId: string, profileId: string) {
+  const { data: t } = await db.from("tasks").select("*").eq("id", taskId).single();
+  const { data: a } = await db.from("task_assignees").select("status").eq("task_id", taskId).eq("profile_id", profileId).single();
+  if (!t || !a || !t.created_by || t.created_by === profileId) return 0;
+  const name = await profileName(profileId);
+  return send([t.created_by], {
+    title: a.status === "fait" ? `${name} a fait : ${t.title}` : `${name} ne peut pas : ${t.title}`,
+    body: a.status === "fait" ? "Tâche terminée." : "Il faut peut-être confier la tâche à quelqu'un d'autre.",
+    tag: `tache-etat-${t.id}-${profileId}`,
+  });
+}
+
+/** Nouveau message dans le fil d'une tâche : prévient les autres personnes de la tâche. */
+async function onTaskMessage(id: string) {
+  const { data: m } = await db.from("task_messages").select("*, tasks(title, created_by, task_assignees(profile_id))").eq("id", id).single();
+  if (!m || !m.tasks) return 0;
+  const t = m.tasks as { title: string; created_by: string | null; task_assignees: { profile_id: string }[] };
+  const who = new Set([t.created_by, ...t.task_assignees.map((a) => a.profile_id)].filter((x): x is string => !!x));
+  who.delete(m.author_id);
+  return send([...who], {
+    title: `${await profileName(m.author_id)} · ${t.title}`,
+    body: short(m.body),
+    tag: `tache-msg-${m.task_id}`,
+  });
+}
+
+/** Veille de la date limite, à 18 h : rappel à ceux qui n'ont pas encore répondu. */
+async function taskReminders(tomorrow: string) {
+  const { data: tasks } = await db.from("tasks").select("*, task_assignees(profile_id, status)").eq("due_date", tomorrow);
+  let sent = 0;
+  for (const t of tasks ?? []) {
+    const todo = (t.task_assignees as { profile_id: string; status: string }[])
+      .filter((a) => a.status === "a_faire").map((a) => a.profile_id);
+    if (todo.length === 0) continue;
+    const { error } = await db.from("task_notification_log").insert({ task_id: t.id, kind: "veille" });
+    if (error) continue;
+    sent += await send(todo, { title: `À faire pour demain : ${t.title}`, body: short(t.details?.trim() || "Pense à indiquer « Fait » dans l'appli."), tag: `tache-${t.id}` });
+  }
+  return sent;
+}
+
 async function reminders(force: boolean) {
   const now = new Date();
   const today = paris(now);
@@ -122,6 +184,7 @@ async function reminders(force: boolean) {
       });
     }
   }
+  sent += await taskReminders(dayIn(1));
   return sent;
 }
 
@@ -133,6 +196,9 @@ Deno.serve(async (req) => {
   let sent = 0;
   if (p.type === "event") sent = await onEvent(p.id);
   else if (p.type === "announcement") sent = await onAnnouncement(p.id);
+  else if (p.type === "task" && p.task_id && p.profile_id) sent = await onTask(p.task_id, p.profile_id);
+  else if (p.type === "task_status" && p.task_id && p.profile_id) sent = await onTaskStatus(p.task_id, p.profile_id);
+  else if (p.type === "task_message" && p.id) sent = await onTaskMessage(p.id);
   else if (p.type === "reminders") sent = await reminders(p.force === true);
   else if (p.type === "test" && p.profile_id) {
     sent = await send([p.profile_id], { title: "Notifications activées", body: "Tu recevras les rappels du Groupe de Chant Narbonne." });

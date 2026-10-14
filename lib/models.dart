@@ -466,3 +466,96 @@ class Recording {
         durationSeconds: (m['duration_seconds'] as num?)?.toInt(),
       );
 }
+
+/// Où en est une personne chargée d'une tâche.
+enum TaskStatus { aFaire, fait, impossible }
+
+TaskStatus taskStatusFromDb(String? v) => switch (v) {
+      'fait' => TaskStatus.fait,
+      'impossible' => TaskStatus.impossible,
+      _ => TaskStatus.aFaire,
+    };
+
+String taskStatusToDb(TaskStatus s) => switch (s) {
+      TaskStatus.aFaire => 'a_faire',
+      TaskStatus.fait => 'fait',
+      TaskStatus.impossible => 'impossible',
+    };
+
+class TaskAssignee {
+  final String profileId;
+  final TaskStatus status;
+  final DateTime updatedAt;
+
+  const TaskAssignee({required this.profileId, required this.status, required this.updatedAt});
+
+  factory TaskAssignee.fromMap(Map<String, dynamic> m) => TaskAssignee(
+        profileId: m['profile_id'] as String,
+        status: taskStatusFromDb(m['status'] as String?),
+        updatedAt: DateTime.parse(m['updated_at'] as String).toLocal(),
+      );
+}
+
+/// Tâche précise confiée par le Responsable ou un Référent à certaines personnes.
+class ChoirTask {
+  final String id;
+  final String title;
+  final String? details;
+  final DateTime? dueDate;
+  final String? eventId;
+  final String? authorId;
+  final DateTime createdAt;
+  final List<TaskAssignee> assignees;
+
+  const ChoirTask({
+    required this.id,
+    required this.title,
+    this.details,
+    this.dueDate,
+    this.eventId,
+    this.authorId,
+    required this.createdAt,
+    this.assignees = const [],
+  });
+
+  TaskAssignee? assignee(String profileId) => assignees.where((a) => a.profileId == profileId).firstOrNull;
+
+  /// Terminée quand plus personne n'a la tâche « à faire ».
+  bool get isDone => assignees.isNotEmpty && assignees.every((a) => a.status != TaskStatus.aFaire);
+
+  /// Date limite passée alors que quelqu'un ne l'a pas encore faite.
+  bool isLate([DateTime? now]) {
+    if (dueDate == null || isDone) return false;
+    final n = now ?? DateTime.now();
+    return dueDate!.isBefore(DateTime(n.year, n.month, n.day));
+  }
+
+  factory ChoirTask.fromMap(Map<String, dynamic> m) => ChoirTask(
+        id: m['id'] as String,
+        title: m['title'] as String,
+        details: m['details'] as String?,
+        dueDate: m['due_date'] == null ? null : DateTime.parse(m['due_date'] as String),
+        eventId: m['event_id'] as String?,
+        authorId: m['created_by'] as String?,
+        createdAt: DateTime.parse(m['created_at'] as String).toLocal(),
+        assignees: ((m['task_assignees'] as List?) ?? const [])
+            .map((e) => TaskAssignee.fromMap(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+      );
+}
+
+class TaskMessage {
+  final String id;
+  final String? authorId;
+  final String body;
+  final DateTime createdAt;
+
+  const TaskMessage({required this.id, this.authorId, required this.body, required this.createdAt});
+
+  factory TaskMessage.fromMap(Map<String, dynamic> m) => TaskMessage(
+        id: m['id'] as String,
+        authorId: m['author_id'] as String?,
+        body: m['body'] as String,
+        createdAt: DateTime.parse(m['created_at'] as String).toLocal(),
+      );
+}
