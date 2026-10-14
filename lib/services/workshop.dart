@@ -61,6 +61,15 @@ abstract class WorkBackend {
   Future<void> updateRecording(String id, {String? title, String? notes});
   Future<void> deleteRecording(Recording r);
 
+  /// Ajoute un fichier déjà déposé à la suite d'un enregistrement.
+  Future<Recording> appendRecordingPart(Recording r, RecordingPart part);
+
+  /// Met l'enregistrement [other] à la suite de [r] (ses fichiers et ses notes), puis le retire de la liste.
+  Future<Recording> mergeRecordings(Recording r, Recording other);
+
+  /// Retire une suite (index dans [Recording.extraParts]) et son fichier.
+  Future<Recording> removeRecordingPart(Recording r, int index);
+
   /// Dépose un fichier et renvoie son chemin.
   Future<String> upload(String bucket, String fileName, Uint8List bytes, String contentType);
   Future<void> deleteFile(String bucket, String path);
@@ -256,7 +265,47 @@ class SupabaseWork implements WorkBackend {
   @override
   Future<void> deleteRecording(Recording r) async {
     await _db.from('recordings').delete().eq('id', r.id);
-    await _repo.deleteFiles(WorkBackend.recordingsBucket, [r.audioPath]);
+    await _repo.deleteFiles(WorkBackend.recordingsBucket, [for (final p in r.parts) p.path]);
+  }
+
+  Future<Recording> _setParts(Recording r, List<RecordingPart> extra, int? total, {String? notes}) async {
+    final row = await _db
+        .from('recordings')
+        .update({
+          'extra_parts': [for (final p in extra) p.toMap()],
+          'duration_seconds': total,
+          if (notes != null) 'notes': notes,
+        })
+        .eq('id', r.id)
+        .select()
+        .single();
+    return Recording.fromMap(row);
+  }
+
+  static int? _sum(int? a, int? b) => (a == null || b == null) ? null : a + b;
+
+  @override
+  Future<Recording> appendRecordingPart(Recording r, RecordingPart part) =>
+      _setParts(r, [...r.extraParts, part], _sum(r.durationSeconds, part.seconds));
+
+  @override
+  Future<Recording> mergeRecordings(Recording r, Recording other) async {
+    final notes = [r.notes, other.notes].whereType<String>().where((n) => n.trim().isNotEmpty).join('\n\n');
+    final merged = await _setParts(r, [...r.extraParts, ...other.parts], _sum(r.durationSeconds, other.durationSeconds),
+        notes: notes.isEmpty ? null : notes);
+    // Les fichiers restent : ils font maintenant partie de l'enregistrement fusionné.
+    await _db.from('recordings').delete().eq('id', other.id);
+    return merged;
+  }
+
+  @override
+  Future<Recording> removeRecordingPart(Recording r, int index) async {
+    final part = r.extraParts[index];
+    final extra = [...r.extraParts]..removeAt(index);
+    final total = (r.durationSeconds == null || part.seconds == null) ? r.durationSeconds : r.durationSeconds! - part.seconds!;
+    final updated = await _setParts(r, extra, total);
+    await _repo.deleteFiles(WorkBackend.recordingsBucket, [part.path]);
+    return updated;
   }
 
   @override
@@ -269,7 +318,7 @@ class SupabaseWork implements WorkBackend {
   @override
   Future<String> audioUrl(String path) async {
     const bucket = WorkBackend.recordingsBucket;
-    final type = path.endsWith('.m4a') ? 'audio/mp4' : (path.endsWith('.ogg') ? 'audio/ogg' : 'audio/webm');
+    final type = audioTypeOf(path);
     if (await FileStore.instance.has(bucket, path)) {
       final local = await localUrl(await FileStore.instance.load(bucket, path), type);
       if (local != null) return local;
@@ -285,6 +334,38 @@ class SupabaseWork implements WorkBackend {
       return local;
     }
   }
+}
+
+/// Formats audio acceptés à l'import (extension → type), lisibles sur iPhone comme sur ordinateur.
+const audioTypes = {
+  'm4a': 'audio/mp4',
+  'mp4': 'audio/mp4',
+  'aac': 'audio/aac',
+  'mp3': 'audio/mpeg',
+  'wav': 'audio/wav',
+  'ogg': 'audio/ogg',
+  'opus': 'audio/ogg',
+  'webm': 'audio/webm',
+  'flac': 'audio/flac',
+};
+
+/// Type d'un fichier d'après son nom (webm par défaut, comme les enregistrements faits dans l'appli).
+String audioTypeOf(String name) {
+  final dot = name.lastIndexOf('.');
+  return audioTypes[dot < 0 ? '' : name.substring(dot + 1).toLowerCase()] ?? 'audio/webm';
+}
+
+String audioExtensionOf(String mimeType) {
+  final t = mimeType.split(';').first.trim();
+  if (t.contains('mp4') || t == 'audio/x-m4a') return 'm4a';
+  return switch (t) {
+    'audio/aac' => 'aac',
+    'audio/mpeg' => 'mp3',
+    'audio/wav' || 'audio/x-wav' => 'wav',
+    'audio/ogg' => 'ogg',
+    'audio/flac' => 'flac',
+    _ => 'webm',
+  };
 }
 
 /// Enregistrement terminé mais pas encore envoyé (pas de réseau, envoi interrompu).
@@ -328,7 +409,7 @@ class PendingRecording {
         durationSeconds: (m['duration'] as num).toInt(),
       );
 
-  String get extension => mimeType.contains('mp4') ? 'm4a' : (mimeType.contains('ogg') ? 'ogg' : 'webm');
+  String get extension => audioExtensionOf(mimeType);
   String get contentType => mimeType.split(';').first;
 }
 
@@ -372,7 +453,7 @@ class PendingRecordings {
       title: p.title,
       notes: p.notes,
       audioPath: path,
-      durationSeconds: p.durationSeconds,
+      durationSeconds: p.durationSeconds > 0 ? p.durationSeconds : null,
     );
     // Déjà sur le téléphone : réécoute immédiate sans retéléchargement.
     await FileStore.instance.keep(WorkBackend.recordingsBucket, path, bytes);

@@ -2,13 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 /// Lecteur audio pour répéter : lecture, avance/recul de 10 s, vitesse, boucle.
+///
+/// Avec plusieurs fichiers ([parts]), ils sont lus l'un après l'autre comme un seul enregistrement :
+/// une seule barre de temps du début de la première partie à la fin de la dernière.
 class AudioPlayerBar extends StatefulWidget {
-  final String url;
+  final List<String> urls;
 
   /// Durée connue d'avance (certains enregistrements ne l'indiquent pas eux-mêmes).
   final Duration? duration;
 
-  const AudioPlayerBar({super.key, required this.url, this.duration});
+  /// Durée connue de chaque partie, quand il y en a plusieurs.
+  final List<Duration?> partDurations;
+
+  AudioPlayerBar({super.key, required String url, this.duration})
+      : urls = [url],
+        partDurations = const [];
+
+  const AudioPlayerBar.parts({super.key, required this.urls, this.partDurations = const [], this.duration});
 
   @override
   State<AudioPlayerBar> createState() => _AudioPlayerBarState();
@@ -18,10 +28,17 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
   final _player = AudioPlayer();
   String? _error;
 
+  String get _url => widget.urls.first;
+
+  bool get _multi => widget.urls.length > 1;
+
   @override
   void initState() {
     super.initState();
-    _player.setUrl(widget.url).catchError((Object e) {
+    final load = _multi
+        ? _player.setAudioSources([for (final u in widget.urls) AudioSource.uri(Uri.parse(u))])
+        : _player.setUrl(_url);
+    load.catchError((Object e) {
       if (mounted) setState(() => _error = 'Lecture audio impossible');
       return null;
     });
@@ -39,16 +56,58 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
     return '${d.inHours}:${(d.inMinutes % 60).toString().padLeft(2, '0')}:$s';
   }
 
+  /// Durée d'une partie : celle lue par le lecteur, sinon celle connue d'avance.
+  Duration _partLength(int i) {
+    final seq = _player.sequence;
+    final d = i < seq.length ? seq[i].duration : null;
+    if (d != null && d > Duration.zero) return d;
+    if (i == _player.currentIndex && (_player.duration ?? Duration.zero) > Duration.zero) return _player.duration!;
+    return (i < widget.partDurations.length ? widget.partDurations[i] : null) ?? Duration.zero;
+  }
+
   Duration get _total {
+    if (_multi) {
+      var t = Duration.zero;
+      for (var i = 0; i < widget.urls.length; i++) {
+        t += _partLength(i);
+      }
+      return t == Duration.zero ? (widget.duration ?? Duration.zero) : t;
+    }
     final d = _player.duration;
     return (d == null || d == Duration.zero) ? (widget.duration ?? Duration.zero) : d;
   }
 
-  void _seekBy(int seconds) {
-    final target = _player.position + Duration(seconds: seconds);
-    final max = _total;
-    _player.seek(target < Duration.zero ? Duration.zero : (target > max ? max : target));
+  /// Début de la partie [index] sur la barre de temps commune.
+  Duration _offset(int index) {
+    var t = Duration.zero;
+    for (var i = 0; i < index; i++) {
+      t += _partLength(i);
+    }
+    return t;
   }
+
+  Duration get _position => _multi ? _offset(_player.currentIndex ?? 0) + _player.position : _player.position;
+
+  void _seekTo(Duration target) {
+    final max = _total;
+    if (target < Duration.zero) target = Duration.zero;
+    if (target > max) target = max;
+    if (!_multi) {
+      _player.seek(target);
+      return;
+    }
+    var start = Duration.zero;
+    for (var i = 0; i < widget.urls.length; i++) {
+      final len = _partLength(i);
+      if (target < start + len || i == widget.urls.length - 1) {
+        _player.seek(target - start, index: i);
+        return;
+      }
+      start += len;
+    }
+  }
+
+  void _seekBy(int seconds) => _seekTo(_position + Duration(seconds: seconds));
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +120,7 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
           StreamBuilder<Duration>(
             stream: _player.positionStream,
             builder: (context, snap) {
-              final pos = snap.data ?? Duration.zero;
+              final pos = _multi ? _position : (snap.data ?? Duration.zero);
               final total = _total;
               return Row(children: [
                 Text(_fmt(pos)),
@@ -69,7 +128,7 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
                   child: Slider(
                     value: pos.inMilliseconds.clamp(0, total.inMilliseconds).toDouble(),
                     max: total.inMilliseconds.toDouble().clamp(1, double.infinity),
-                    onChanged: (v) => _player.seek(Duration(milliseconds: v.round())),
+                    onChanged: (v) => _seekTo(Duration(milliseconds: v.round())),
                   ),
                 ),
                 Text(_fmt(total)),

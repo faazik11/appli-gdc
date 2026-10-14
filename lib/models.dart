@@ -447,7 +447,12 @@ class Recording {
   final String? title;
   final String? notes;
   final String audioPath;
+
+  /// Durée totale, suites comprises.
   final int? durationSeconds;
+
+  /// Suites lues après le fichier principal (audio importé, autre enregistrement fusionné).
+  final List<RecordingPart> extraParts;
 
   const Recording({
     required this.id,
@@ -457,7 +462,17 @@ class Recording {
     this.notes,
     required this.audioPath,
     this.durationSeconds,
+    this.extraParts = const [],
   });
+
+  /// Tous les morceaux dans l'ordre d'écoute ; la durée du premier se déduit du total.
+  List<RecordingPart> get parts {
+    int? first = durationSeconds;
+    for (final p in extraParts) {
+      first = (first == null || p.seconds == null) ? null : first - p.seconds!;
+    }
+    return [RecordingPart(path: audioPath, seconds: first != null && first > 0 ? first : null), ...extraParts];
+  }
 
   factory Recording.fromMap(Map<String, dynamic> m) => Recording(
         id: m['id'] as String,
@@ -467,7 +482,24 @@ class Recording {
         notes: m['notes'] as String?,
         audioPath: m['audio_path'] as String,
         durationSeconds: (m['duration_seconds'] as num?)?.toInt(),
+        extraParts: [
+          for (final p in (m['extra_parts'] as List? ?? const []))
+            RecordingPart.fromMap(Map<String, dynamic>.from(p as Map)),
+        ],
       );
+}
+
+/// Un fichier d'un enregistrement de répétition.
+class RecordingPart {
+  final String path;
+  final int? seconds;
+
+  const RecordingPart({required this.path, this.seconds});
+
+  factory RecordingPart.fromMap(Map<String, dynamic> m) =>
+      RecordingPart(path: m['path'] as String, seconds: (m['seconds'] as num?)?.toInt());
+
+  Map<String, dynamic> toMap() => {'path': path, 'seconds': seconds};
 }
 
 /// Où en est une personne chargée d'une tâche.
