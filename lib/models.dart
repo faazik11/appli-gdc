@@ -47,8 +47,11 @@ class Profile {
   bool get isEditor => isApproved && role != MemberRole.membre;
   bool get isAdmin => role == MemberRole.admin;
 
+  /// Admin et responsable : écrivent les annonces et confient les tâches.
+  bool get isManager => role == MemberRole.admin || role == MemberRole.responsable;
+
   /// Écrit et retire les annonces de l'accueil.
-  bool get canAnnounce => role == MemberRole.admin || role == MemberRole.responsable;
+  bool get canAnnounce => isManager;
   bool get isApproved => role != MemberRole.enAttente;
 
   factory Profile.fromMap(Map<String, dynamic> m) => Profile(

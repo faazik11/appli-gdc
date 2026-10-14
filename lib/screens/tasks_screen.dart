@@ -55,7 +55,7 @@ class _TasksScreenState extends State<TasksScreen> {
   bool _showDone = false;
   bool _onlyMine = false;
 
-  bool get _editor => widget.profile.isEditor;
+  bool get _editor => widget.profile.isManager;
 
   @override
   void initState() {
@@ -415,7 +415,7 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final editor = widget.profile.isEditor;
+    final editor = widget.profile.isManager;
     final mine = _task.assignee(_me);
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final late = _task.isLate();
@@ -572,7 +572,7 @@ class _TaskScreenState extends State<TaskScreen> {
 
   Widget _bubble(TaskMessage m, ThemeData theme) {
     final mine = m.authorId == _me;
-    final canDelete = mine || widget.profile.isEditor;
+    final canDelete = mine || widget.profile.isManager;
     final bg = mine ? AppColors.aubergineLight : theme.colorScheme.surfaceContainerHighest;
     final fg = mine ? Colors.white : theme.colorScheme.onSurface;
     return Align(

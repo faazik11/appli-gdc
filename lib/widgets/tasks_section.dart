@@ -7,7 +7,7 @@ import '../services/tasks.dart';
 import '../theme.dart';
 import 'ui.dart';
 
-/// Accueil : les tâches à faire de la personne, et pour les référents le suivi de celles confiées.
+/// Accueil : les tâches à faire de la personne, et pour l'admin et le responsable le suivi de celles confiées.
 class TasksSection extends StatefulWidget {
   final Profile profile;
   final TasksBackend backend;
@@ -62,10 +62,10 @@ class _TasksSectionState extends State<TasksSection> {
     final tasks = _tasks;
     if (tasks == null) return const SizedBox.shrink();
     final me = widget.profile.id;
-    final editor = widget.profile.isEditor;
+    final editor = widget.profile.isManager;
     final todo = tasks.where((t) => t.assignee(me)?.status == TaskStatus.aFaire).toList()
       ..sort((a, b) => (a.dueDate ?? DateTime(9999)).compareTo(b.dueDate ?? DateTime(9999)));
-    // Un membre sans tâche ne voit rien ; un référent garde l'accès au suivi.
+    // Sans tâche en cours on ne voit rien ; l'admin et le responsable gardent l'accès au suivi.
     if (!editor && todo.isEmpty) return const SizedBox.shrink();
     final names = {for (final p in _members) p.id: p.fullName};
     final open = tasks.where((t) => !t.isDone).toList();
