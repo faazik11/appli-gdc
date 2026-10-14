@@ -152,13 +152,14 @@ class AnnouncementsSectionState extends State<AnnouncementsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final editor = widget.profile.isEditor;
+    // Seuls l'admin et le responsable gèrent les annonces ; les autres ne voient que celles publiées.
+    final editor = widget.profile.canAnnounce;
     if (_items == null) return const SizedBox.shrink();
     // Seules les annonces encore en cours s'affichent sur l'accueil
     final items = _items!.where((a) => a.isActive()).toList();
     final theme = Theme.of(context);
     if (items.isEmpty) {
-      // Les membres ne voient rien ; les référents peuvent en créer une.
+      // Les autres ne voient rien ; l'admin et le responsable peuvent en créer une.
       if (!editor) return const SizedBox.shrink();
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const SectionHeader('Annonce'),
