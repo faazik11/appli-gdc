@@ -128,7 +128,7 @@ class _AgendaPanelState extends State<AgendaPanel> {
                   'Une répétition en plus, à la date de ton choix',
                   EventFormScreen(
                       backend: widget.backend, kind: EventKind.repetition, locations: locations, links: widget.links)),
-              tile(Icons.star_rounded, const Color(0xFFB8860B), 'Une prestation', 'Concert, mariage, fête…',
+              tile(Icons.star_rounded, const Color(0xFFB8860B), 'Une prestation', 'Mariage, Fête du Mawlid…',
                   EventFormScreen(
                       backend: widget.backend, kind: EventKind.prestation, locations: locations, links: widget.links)),
             ]),
