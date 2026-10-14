@@ -9,6 +9,7 @@ import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/new_password_screen.dart';
 import 'screens/pending_screen.dart';
+import 'services/appearance.dart';
 import 'services/offline.dart';
 import 'services/repository.dart';
 import 'theme.dart';
@@ -24,6 +25,7 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
     authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit),
   );
+  await Appearance.load();
   runApp(const AppliGdc());
 }
 
@@ -32,7 +34,9 @@ class AppliGdc extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: Appearance.mode,
+      builder: (context, mode, _) => MaterialApp(
       title: 'Appli GDC',
       debugShowCheckedModeBanner: false,
       locale: const Locale('fr', 'FR'),
@@ -40,7 +44,9 @@ class AppliGdc extends StatelessWidget {
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
+      themeMode: mode,
       home: const AuthGate(),
+    ),
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models.dart';
 import '../platform/pick_file.dart';
 import '../services/agenda.dart';
+import '../services/appearance.dart';
 import '../services/file_store.dart';
 import '../services/offline.dart';
 import '../services/page_images.dart';
@@ -505,6 +506,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.of(context).push(MaterialPageRoute(
                           builder: (ctx) => NewPasswordScreen(onDone: () => Navigator.of(ctx).pop())));
                     }
+                    if (v == 'appearance') Appearance.choose(context);
                     if (v == 'logout') {
                       await PushService.disable();
                       Supabase.instance.client.auth.signOut();
@@ -521,6 +523,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     else if (PushService.state.value != PushState.unsupported)
                       // onTap : appelé pendant le toucher, nécessaire pour que l'iPhone pose la question.
                       PopupMenuItem(onTap: _enableNotifications, child: const Text('Activer les notifications')),
+                    const PopupMenuItem(value: 'appearance', child: Text('Apparence : clair / sombre')),
                     const PopupMenuItem(value: 'password', child: Text('Changer mon mot de passe')),
                     const PopupMenuItem(value: 'logout', child: Text('Se déconnecter')),
                   ],
