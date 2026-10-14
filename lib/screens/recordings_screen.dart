@@ -11,6 +11,7 @@ import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/audio_player_bar.dart';
 import '../widgets/ui.dart';
+import 'import_audio_screen.dart';
 import 'tools_screen.dart';
 
 String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
@@ -20,7 +21,7 @@ String recordingTitle(DateTime d, String? title) =>
     (title?.trim().isNotEmpty ?? false) ? title!.trim() : 'Répétition du ${DateFormat('EEEE d MMMM', 'fr_FR').format(d)}';
 
 String formatDuration(int? seconds) {
-  if (seconds == null) return '';
+  if (seconds == null || seconds <= 0) return '';
   final h = seconds ~/ 3600, m = (seconds % 3600) ~/ 60, s = seconds % 60;
   if (h > 0) return '${h}h${m.toString().padLeft(2, '0')}';
   if (m > 0) return '$m min';
@@ -120,6 +121,24 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
     if (done == true) _load();
   }
 
+  /// Audio enregistré sans l'appli (Dictaphone…) : nouvel enregistrement ou suite d'un existant.
+  Future<void> _import() async {
+    final audio = await pickAudio(context);
+    if (audio == null || !mounted) return;
+    final done = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ImportAudioScreen(
+          backend: widget.backend,
+          agenda: widget.agenda,
+          audio: audio,
+          recordings: _items ?? const [],
+        ),
+      ),
+    );
+    if (done == true) _load();
+  }
+
   Future<void> _send(PendingRecording p) async {
     setState(() => _sending = p.key);
     try {
@@ -170,7 +189,17 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
       groups.putIfAbsent(_cap(DateFormat('MMMM y', 'fr_FR').format(r.recordedAt)), () => []).add(r);
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Répétitions')),
+      appBar: AppBar(title: const Text('Répétitions'), actions: [
+        if (widget.canEdit)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton.icon(
+              icon: const Icon(Icons.upload_file_rounded),
+              label: const Text('Importer'),
+              onPressed: _import,
+            ),
+          ),
+      ]),
       floatingActionButton: widget.canEdit
           ? FloatingActionButton.extended(
               backgroundColor: const Color(0xFFC62828),
@@ -217,7 +246,8 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
                   icon: Icons.mic_none_rounded,
                   title: 'Aucun enregistrement',
                   message: widget.canEdit
-                      ? 'Appuie sur « Enregistrer » au début de la répétition : elle sera datée automatiquement et disponible ici pour tout le groupe.'
+                      ? 'Appuie sur « Enregistrer » au début de la répétition : elle sera datée automatiquement et disponible ici pour tout le groupe. '
+                          'Un audio enregistré ailleurs (Dictaphone…) s\'ajoute avec « Importer ».'
                       : 'Les répétitions enregistrées par les référents apparaîtront ici.',
                 )
               else
@@ -254,7 +284,11 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
                                     Icon(Icons.schedule_rounded, size: 15, color: theme.colorScheme.onSurfaceVariant),
                                     const SizedBox(width: 4),
                                     Text(
-                                      [DateFormat('HH:mm').format(r.recordedAt), formatDuration(r.durationSeconds)]
+                                      [
+                                        DateFormat('HH:mm').format(r.recordedAt),
+                                        formatDuration(r.durationSeconds),
+                                        if (r.extraParts.isNotEmpty) '${r.extraParts.length + 1} parties',
+                                      ]
                                           .where((s) => s.isNotEmpty)
                                           .join(' · '),
                                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -294,17 +328,137 @@ class RecordingDetailScreen extends StatefulWidget {
 }
 
 class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
-  late final Future<String> _url = widget.backend.audioUrl(widget.recording.audioPath);
+  late Recording _rec = widget.recording;
+  late Future<List<String>> _urls = _loadUrls();
+  bool _adding = false;
   late final _title = TextEditingController(text: widget.recording.title);
   late final _notes = TextEditingController(text: widget.recording.notes);
   bool _dirty = false;
   bool _saving = false;
   bool _changed = false;
 
+  Future<List<String>> _loadUrls() => Future.wait([for (final p in _rec.parts) widget.backend.audioUrl(p.path)]);
+
+  void _replace(Recording r) {
+    _changed = true;
+    setState(() {
+      _rec = r;
+      _urls = _loadUrls();
+      if (!_dirty) _notes.text = r.notes ?? '';
+    });
+  }
+
+  Future<void> _run(Future<Recording> Function() action, String done) async {
+    setState(() => _adding = true);
+    try {
+      _replace(await action());
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done)));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible pour l\'instant : $e')));
+    }
+    if (mounted) setState(() => _adding = false);
+  }
+
+  /// Ajoute à la suite un audio importé ou un autre enregistrement de la liste.
+  Future<void> _addNext() async {
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.upload_file_rounded),
+            title: const Text('Importer un fichier audio'),
+            subtitle: const Text('Enregistré avec Dictaphone ou un autre appareil'),
+            onTap: () => Navigator.pop(ctx, 0),
+          ),
+          ListTile(
+            leading: const Icon(Icons.merge_rounded),
+            title: const Text('Ajouter un autre enregistrement'),
+            subtitle: const Text('Déjà dans la liste des répétitions'),
+            onTap: () => Navigator.pop(ctx, 1),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 0) {
+      final audio = await pickAudio(context);
+      if (audio == null || !mounted) return;
+      await _run(() => appendAudio(widget.backend, _rec, audio), 'Audio ajouté à la suite.');
+      return;
+    }
+    List<Recording> others;
+    try {
+      others = (await widget.backend.recordings()).where((r) => r.id != _rec.id).toList();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Chargement impossible : $e')));
+      return;
+    }
+    if (!mounted) return;
+    final other = await showModalBottomSheet<Recording>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+          child: ListView(shrinkWrap: true, children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text('Quel enregistrement mettre à la suite ?', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            if (others.isEmpty) const ListTile(title: Text('Aucun autre enregistrement.')),
+            for (final r in others)
+              ListTile(
+                leading: const Icon(Icons.mic_none_rounded),
+                title: Text(recordingTitle(r.recordedAt, r.title)),
+                subtitle: Text([
+                  DateFormat('d MMM y \'à\' HH:mm', 'fr_FR').format(r.recordedAt),
+                  formatDuration(r.durationSeconds),
+                ].where((s) => s.isNotEmpty).join(' · ')),
+                onTap: () => Navigator.pop(ctx, r),
+              ),
+          ]),
+        ),
+      ),
+    );
+    if (other == null || !mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text('« ${recordingTitle(other.recordedAt, other.title)} » sera lu à la suite de celui-ci '
+            'et n\'apparaîtra plus séparément dans la liste. Ses points abordés sont ajoutés aux tiens.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Fusionner')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _run(() => widget.backend.mergeRecordings(_rec, other), 'Enregistrements fusionnés.');
+  }
+
+  Future<void> _removePart(int index) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text('Retirer la partie ${index + 2} et supprimer son fichier ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Retirer')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _run(() => widget.backend.removeRecordingPart(_rec, index), 'Partie retirée.');
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await widget.backend.updateRecording(widget.recording.id, title: _title.text, notes: _notes.text);
+      await widget.backend.updateRecording(_rec.id, title: _title.text, notes: _notes.text);
       _changed = true;
       if (mounted) {
         setState(() => _dirty = false);
@@ -328,13 +482,14 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
       ),
     );
     if (ok != true) return;
-    await widget.backend.deleteRecording(widget.recording);
+    await widget.backend.deleteRecording(_rec);
     if (mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final r = widget.recording;
+    final r = _rec;
+    final parts = r.parts;
     final theme = Theme.of(context);
     return PopScope(
       canPop: false,
@@ -366,19 +521,52 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: FutureBuilder<String>(
-                      future: _url,
+                    child: FutureBuilder<List<String>>(
+                      future: _urls,
                       builder: (context, snap) => snap.hasError
                           ? ListTile(leading: const Icon(Icons.error_outline), title: Text('Lecture impossible : ${snap.error}'))
                           : !snap.hasData
                               ? const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
-                              : AudioPlayerBar(
-                                  url: snap.data!,
+                              : AudioPlayerBar.parts(
+                                  key: ValueKey(parts.map((p) => p.path).join('|')),
+                                  urls: snap.data!,
+                                  partDurations: [
+                                    for (final p in parts) p.seconds == null ? null : Duration(seconds: p.seconds!),
+                                  ],
                                   duration: r.durationSeconds == null ? null : Duration(seconds: r.durationSeconds!),
                                 ),
                     ),
                   ),
                 ),
+                if (parts.length > 1)
+                  for (final (i, p) in parts.indexed)
+                    ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.only(left: 12),
+                      leading: CircleAvatar(radius: 13, child: Text('${i + 1}', style: const TextStyle(fontSize: 12))),
+                      title: Text('Partie ${i + 1}${i == 0 ? '' : ' · à la suite'}'),
+                      subtitle: p.seconds == null ? null : Text(formatDuration(p.seconds)),
+                      trailing: widget.canEdit && i > 0 && !_adding
+                          ? IconButton(
+                              tooltip: 'Retirer cette partie',
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => _removePart(i - 1),
+                            )
+                          : null,
+                    ),
+                if (widget.canEdit) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      icon: _adding
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.playlist_add_rounded),
+                      label: Text(_adding ? 'Envoi…' : 'Ajouter la suite'),
+                      onPressed: _adding ? null : _addNext,
+                    ),
+                  ),
+                ],
                 const SectionHeader('Points abordés'),
                 if (widget.canEdit) ...[
                   TextField(
