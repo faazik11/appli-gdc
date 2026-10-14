@@ -11,12 +11,14 @@ import '../services/offline.dart';
 import '../services/page_images.dart';
 import '../services/push_service.dart';
 import '../services/repository.dart';
+import '../services/tasks.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/announcements.dart';
 import '../widgets/install_card.dart';
 import '../widgets/library_links.dart';
 import '../widgets/notifications_card.dart';
+import '../widgets/tasks_section.dart';
 import '../widgets/ui.dart';
 import 'agenda_screen.dart';
 import 'booklet_editor_screen.dart';
@@ -53,6 +55,7 @@ class HomeScreen extends StatefulWidget {
   final MembersPanel? membersPanel;
   final AgendaBackend? agenda;
   final WorkBackend? work;
+  final TasksBackend? tasks;
   final int initialTab;
 
 
@@ -63,6 +66,7 @@ class HomeScreen extends StatefulWidget {
     this.membersPanel,
     this.agenda,
     this.work,
+    this.tasks,
     this.initialTab = 0,
   });
 
@@ -74,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _repo = Repository.instance;
   late final AgendaBackend _agenda = widget.agenda ?? SupabaseAgenda();
   late final WorkBackend _work = widget.work ?? SupabaseWork();
+  late final TasksBackend _tasks = widget.tasks ?? SupabaseTasks();
   LibraryData _data = const LibraryData([], [], []);
   bool _loading = true;
   String? _error;
@@ -425,6 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ContentWidth(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             AnnouncementsSection(profile: widget.profile, backend: _agenda),
+            TasksSection(profile: widget.profile, backend: _tasks, agenda: _agenda),
             NextEventsSection(
               profile: widget.profile,
               backend: _agenda,
