@@ -106,21 +106,46 @@ class _AgendaPanelState extends State<AgendaPanel> {
     final data = _data!;
     showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
       builder: (sheet) {
-        Widget tile(IconData icon, Color color, String title, String subtitle, Widget screen) => ListTile(
-              leading: CircleAvatar(backgroundColor: color, foregroundColor: Colors.white, child: Icon(icon)),
-              title: Text(title),
-              subtitle: Text(subtitle),
-              onTap: () {
-                Navigator.pop(sheet);
-                _push(screen);
-              },
+        final theme = Theme.of(sheet);
+        // Chaque choix est une carte encadrée avec une flèche, pour bien montrer qu'il faut toucher l'une d'elles.
+        Widget tile(IconData icon, Color color, String title, String subtitle, Widget screen) => Card(
+              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              elevation: 0,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: color.withValues(alpha: 0.45), width: 1.5),
+              ),
+              color: color.withValues(alpha: 0.07),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                leading: CircleAvatar(backgroundColor: color, foregroundColor: Colors.white, child: Icon(icon)),
+                title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(subtitle),
+                trailing: Icon(Icons.chevron_right_rounded, color: color, size: 30),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  _push(screen);
+                },
+              ),
             );
         final locations = knownLocations(data.events);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
+                child: Text('Que veux-tu programmer ?', style: theme.textTheme.titleLarge),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Text('Touche une des 3 options ci-dessous.',
+                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              ),
               tile(Icons.date_range_rounded, AppColors.aubergine, 'Programme de la semaine',
                   'Les répétitions habituelles, horaires et lieu à ajuster',
                   WeekPlannerScreen(backend: widget.backend, events: data.events)),
