@@ -9,7 +9,7 @@ import '../services/file_store.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/ui.dart';
-import 'inventory_screen.dart' show StoredPhoto;
+import 'inventory_screen.dart' show StoredPhoto, WholeImage, openPhoto;
 
 const _outfitIcon = Icons.checkroom_rounded;
 
@@ -22,7 +22,7 @@ class _Photo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => fresh != null
-      ? Image.memory(fresh!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+      ? WholeImage(fresh!)
       : StoredPhoto(path, icon: _outfitIcon);
 }
 
@@ -38,10 +38,13 @@ class OutfitView extends StatelessWidget {
     final theme = Theme.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (outfit.photoPath != null)
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: AspectRatio(
-              aspectRatio: compact ? 16 / 9 : 4 / 3, child: StoredPhoto(outfit.photoPath, icon: _outfitIcon)),
+        // Photo en hauteur (mannequin, tenue complète) : montrée en entier, touchée = plein écran.
+        GestureDetector(
+          onTap: () => openPhoto(context, outfit.photoPath!),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SizedBox(height: compact ? 300 : 460, child: StoredPhoto(outfit.photoPath, icon: _outfitIcon)),
+          ),
         ),
       if (outfit.notes != null) ...[
         const SizedBox(height: 10),
@@ -682,8 +685,8 @@ class _OutfitFormScreenState extends State<OutfitFormScreen> {
               onTap: _pickMain,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: AspectRatio(
-                  aspectRatio: 4 / 3,
+                child: SizedBox(
+                  height: 380,
                   child: Stack(fit: StackFit.expand, children: [
                     _Photo(_photoPath, fresh: _photo),
                     Positioned(

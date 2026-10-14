@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' show ImageFilter;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -13,13 +14,33 @@ import '../widgets/stand_icons.dart';
 import '../widgets/ui.dart';
 import 'outfits_screen.dart';
 
+/// Photo entière, sans recadrage : les bords vides sont remplis par la même photo floutée.
+class WholeImage extends StatelessWidget {
+  final Uint8List bytes;
+
+  const WholeImage(this.bytes, {super.key});
+
+  @override
+  Widget build(BuildContext context) => Stack(fit: StackFit.expand, children: [
+        ClipRect(
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+          ),
+        ),
+        ColoredBox(color: Colors.black.withValues(alpha: 0.12)),
+        Image.memory(bytes, fit: BoxFit.contain, gaplessPlayback: true),
+      ]);
+}
+
 /// Photo gardée sur l'appareil après le premier affichage (visible hors connexion).
+/// Sans [fit], la photo est montrée en entier (voir [WholeImage]).
 class StoredPhoto extends StatelessWidget {
   final String? path;
-  final BoxFit fit;
+  final BoxFit? fit;
   final IconData icon;
 
-  const StoredPhoto(this.path, {super.key, this.fit = BoxFit.cover, this.icon = Icons.inventory_2_outlined});
+  const StoredPhoto(this.path, {super.key, this.fit, this.icon = Icons.inventory_2_outlined});
 
   @override
   Widget build(BuildContext context) {
@@ -30,12 +51,26 @@ class StoredPhoto extends StatelessWidget {
     if (path == null) return placeholder;
     return FutureBuilder<Uint8List>(
       future: FileStore.instance.load(WorkBackend.photosBucket, path!),
-      builder: (context, snap) => snap.hasData
-          ? Image.memory(snap.data!, fit: fit, gaplessPlayback: true, width: double.infinity, height: double.infinity)
-          : placeholder,
+      builder: (context, snap) => !snap.hasData
+          ? placeholder
+          : fit == null
+              ? WholeImage(snap.data!)
+              : Image.memory(snap.data!, fit: fit, gaplessPlayback: true, width: double.infinity, height: double.infinity),
     );
   }
 }
+
+/// Plein écran avec zoom, pour voir une photo en détail.
+void openPhoto(BuildContext context, String path) => Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+          body: InteractiveViewer(maxScale: 5, child: Center(child: StoredPhoto(path, fit: BoxFit.contain))),
+        ),
+      ),
+    );
 
 /// Inventaire du matériel du local : fiches produits classées par catégorie.
 class InventoryScreen extends StatefulWidget {
@@ -347,16 +382,7 @@ class EquipmentDetailScreen extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             if (item.photoPath != null)
               GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      backgroundColor: Colors.black,
-                      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
-                      body: InteractiveViewer(maxScale: 5, child: Center(child: StoredPhoto(item.photoPath, fit: BoxFit.contain))),
-                    ),
-                  ),
-                ),
+                onTap: () => openPhoto(context, item.photoPath!),
                 child: AspectRatio(
                   aspectRatio: 4 / 3,
                   child: Hero(tag: 'materiel-${item.id}', child: StoredPhoto(item.photoPath)),
@@ -499,7 +525,7 @@ class _EquipmentFormScreenState extends State<EquipmentFormScreen> {
                       onTap: _pickPhoto,
                       child: Stack(fit: StackFit.expand, children: [
                         if (_newPhoto != null)
-                          Image.memory(_newPhoto!, fit: BoxFit.cover)
+                          WholeImage(_newPhoto!)
                         else if (_photoPath != null)
                           StoredPhoto(_photoPath)
                         else
