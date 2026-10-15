@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
 import '../platform/recorder.dart';
@@ -23,14 +24,20 @@ String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 String recordingTitle(DateTime d, String? title) =>
     (title?.trim().isNotEmpty ?? false) ? title!.trim() : 'Répétition du ${DateFormat('EEEE d MMMM', 'fr_FR').format(d)}';
 
-/// Titres des chants à proposer pour un repère : ceux de l'événement d'abord, puis les autres.
-Future<List<String>> markerSuggestions({List<String> firstIds = const []}) async {
+/// Chants à proposer pour un repère : ceux au programme de l'événement en raccourci
+/// ([pinned]), tous les autres seulement par la recherche ([all]).
+Future<({List<String> pinned, List<String> all})> markerSuggestions({String? eventId, List<String>? eventSongIds}) async {
   try {
     final songs = await Repository.instance.songs();
-    final first = [for (final id in firstIds) ...songs.where((s) => s.id == id)];
-    return [...first, ...songs.where((s) => !first.contains(s))].map((s) => s.title).toList();
+    var ids = eventSongIds ?? const <String>[];
+    if (eventSongIds == null && eventId != null) {
+      final row = await Supabase.instance.client.from('events').select('song_ids').eq('id', eventId).maybeSingle();
+      ids = ((row?['song_ids'] as List?) ?? const []).cast<String>();
+    }
+    final pinned = [for (final id in ids) ...songs.where((s) => s.id == id).map((s) => s.title)];
+    return (pinned: pinned, all: songs.map((s) => s.title).toList());
   } catch (_) {
-    return const [];
+    return (pinned: const <String>[], all: const <String>[]);
   }
 }
 
@@ -474,9 +481,9 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
   /// Pose un repère au moment écouté.
   Future<void> _addMarker() async {
     final seconds = _player.currentState?.position.inSeconds ?? 0;
-    final suggestions = await markerSuggestions();
+    final songs = await markerSuggestions(eventId: _rec.eventId);
     if (!mounted) return;
-    final label = await askMarkerLabel(context, seconds: seconds, suggestions: suggestions);
+    final label = await askMarkerLabel(context, seconds: seconds, pinned: songs.pinned, all: songs.all);
     if (label == null || !mounted) return;
     await _setMarkers([..._rec.markers, RecordingMarker(seconds: seconds, label: label)]);
   }

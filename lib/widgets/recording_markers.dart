@@ -25,19 +25,42 @@ List<List<RecordingMarker>> markersForParts(List<RecordingMarker> markers, List<
   return out;
 }
 
-/// Demande ce qui commence à ce moment : un chant proposé en un toucher, ou un texte libre.
-Future<String?> askMarkerLabel(BuildContext context, {required int seconds, List<String> suggestions = const []}) {
+/// Minuscules sans accents, pour chercher « priere » et trouver « Prière ».
+String plainText(String s) {
+  const from = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ';
+  const to = 'aaaaaaceeeeiiiinooooouuuuyyoa';
+  final lower = s.toLowerCase();
+  final b = StringBuffer();
+  for (final ch in lower.split('')) {
+    final i = from.indexOf(ch);
+    b.write(i < 0 ? ch : to[i]);
+  }
+  return b.toString();
+}
+
+/// Chants dont le titre contient [query] (au plus [max]).
+List<String> searchTitles(List<String> titles, String query, {int max = 6}) {
+  final q = plainText(query.trim());
+  if (q.isEmpty) return const [];
+  return titles.where((t) => plainText(t).contains(q)).take(max).toList();
+}
+
+/// Demande ce qui commence à ce moment : un chant du programme en un toucher ([pinned]),
+/// un autre chant en tapant le début de son titre ([all]), ou un texte libre.
+Future<String?> askMarkerLabel(BuildContext context,
+    {required int seconds, List<String> pinned = const [], List<String> all = const []}) {
   final text = TextEditingController();
   return showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (ctx) {
+    builder: (ctx) => StatefulBuilder(builder: (ctx, setState) {
       void done() {
         final label = text.text.trim();
         if (label.isNotEmpty) Navigator.pop(ctx, label);
       }
 
+      final found = searchTitles(all, text.text);
       return Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
         child: SafeArea(
@@ -46,28 +69,38 @@ Future<String?> askMarkerLabel(BuildContext context, {required int seconds, List
             child: ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), children: [
               Text('Repère à ${markerClock(seconds)}', style: Theme.of(ctx).textTheme.titleLarge),
               const SizedBox(height: 4),
-              const Text('Qu\'est-ce qui commence ici ?'),
+              Text(pinned.isEmpty ? 'Qu\'est-ce qui commence ici ?' : 'Au programme :'),
               const SizedBox(height: 12),
-              if (suggestions.isNotEmpty)
+              if (pinned.isNotEmpty) ...[
                 Wrap(spacing: 8, runSpacing: 8, children: [
-                  for (final s in suggestions) ActionChip(label: Text(s), onPressed: () => Navigator.pop(ctx, s)),
+                  for (final s in pinned) ActionChip(label: Text(s), onPressed: () => Navigator.pop(ctx, s)),
                 ]),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
               TextField(
                 controller: text,
-                autofocus: suggestions.isEmpty,
+                autofocus: pinned.isEmpty,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: 'Autre : échauffement, reprise du refrain…',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  hintText: pinned.isEmpty ? 'Cherche un chant ou écris : échauffement…' : 'Un autre chant, ou : échauffement…',
                   suffixIcon: IconButton(icon: const Icon(Icons.check_rounded), onPressed: done),
                 ),
+                onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => done(),
               ),
+              for (final s in found)
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.music_note_rounded),
+                  title: Text(s),
+                  onTap: () => Navigator.pop(ctx, s),
+                ),
             ]),
           ),
         ),
       );
-    },
+    }),
   );
 }
 
