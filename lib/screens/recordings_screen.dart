@@ -7,9 +7,11 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models.dart';
 import '../platform/recorder.dart';
 import '../services/agenda.dart';
+import '../services/repository.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/audio_player_bar.dart';
+import '../widgets/recording_markers.dart';
 import '../widgets/ui.dart';
 import 'import_audio_screen.dart';
 import 'tools_screen.dart';
@@ -19,6 +21,17 @@ String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 /// Titre par défaut : « Répétition du mercredi 14 octobre ».
 String recordingTitle(DateTime d, String? title) =>
     (title?.trim().isNotEmpty ?? false) ? title!.trim() : 'Répétition du ${DateFormat('EEEE d MMMM', 'fr_FR').format(d)}';
+
+/// Titres des chants à proposer pour un repère : ceux de l'événement d'abord, puis les autres.
+Future<List<String>> markerSuggestions({List<String> firstIds = const []}) async {
+  try {
+    final songs = await Repository.instance.songs();
+    final first = [for (final id in firstIds) ...songs.where((s) => s.id == id)];
+    return [...first, ...songs.where((s) => !first.contains(s))].map((s) => s.title).toList();
+  } catch (_) {
+    return const [];
+  }
+}
 
 String formatDuration(int? seconds) {
   if (seconds == null || seconds <= 0) return '';
@@ -336,6 +349,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
   bool _dirty = false;
   bool _saving = false;
   bool _changed = false;
+  GlobalKey<AudioPlayerBarState> _player = GlobalKey();
 
   Future<List<String>> _loadUrls() => Future.wait([for (final p in _rec.parts) widget.backend.audioUrl(p.path)]);
 
@@ -344,6 +358,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
     setState(() {
       _rec = r;
       _urls = _loadUrls();
+      _player = GlobalKey();
       if (!_dirty) _notes.text = r.notes ?? '';
     });
   }
@@ -455,6 +470,26 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
     await _run(() => widget.backend.removeRecordingPart(_rec, index), 'Partie retirée.');
   }
 
+  /// Pose un repère au moment écouté.
+  Future<void> _addMarker() async {
+    final seconds = _player.currentState?.position.inSeconds ?? 0;
+    final suggestions = await markerSuggestions();
+    if (!mounted) return;
+    final label = await askMarkerLabel(context, seconds: seconds, suggestions: suggestions);
+    if (label == null || !mounted) return;
+    await _setMarkers([..._rec.markers, RecordingMarker(seconds: seconds, label: label)]);
+  }
+
+  Future<void> _setMarkers(List<RecordingMarker> markers) async {
+    try {
+      final r = await widget.backend.setRecordingMarkers(_rec, markers);
+      _changed = true;
+      if (mounted) setState(() => _rec = r);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Repère non enregistré (connexion ?) : $e')));
+    }
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
@@ -528,7 +563,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
                           : !snap.hasData
                               ? const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
                               : AudioPlayerBar.parts(
-                                  key: ValueKey(parts.map((p) => p.path).join('|')),
+                                  key: _player,
                                   urls: snap.data!,
                                   partDurations: [
                                     for (final p in parts) p.seconds == null ? null : Duration(seconds: p.seconds!),
@@ -566,6 +601,26 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
                       onPressed: _adding ? null : _addNext,
                     ),
                   ),
+                ],
+                if (r.markers.isNotEmpty || widget.canEdit) ...[
+                  const SectionHeader('Repères'),
+                  if (r.markers.isEmpty)
+                    Text('Écoute, puis pose un repère au début de chaque chant pour y revenir en un toucher.',
+                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  MarkerList(
+                    markers: r.markers,
+                    onTap: (m) => _player.currentState?.playFrom(Duration(seconds: m.seconds)),
+                    onRemove: widget.canEdit ? (m) => _setMarkers([...r.markers]..remove(m)) : null,
+                  ),
+                  if (widget.canEdit)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.bookmark_add_outlined),
+                        label: const Text('Poser un repère ici'),
+                        onPressed: _addMarker,
+                      ),
+                    ),
                 ],
                 const SectionHeader('Points abordés'),
                 if (widget.canEdit) ...[
@@ -634,6 +689,19 @@ class _RecorderScreenState extends State<RecorderScreen> {
   String? _error;
   RecorderStatus _status = const RecorderStatus();
   bool _healing = false;
+  final _markers = <RecordingMarker>[];
+
+  /// Secondes réellement enregistrées (sans les moments coupés par le téléphone).
+  int get _recordedSeconds => (_watch.elapsed.inSeconds - _recorder.status().lostSeconds).clamp(0, 1 << 30);
+
+  Future<void> _addMarker() async {
+    final seconds = _recordedSeconds;
+    final suggestions = await markerSuggestions(firstIds: _event?.songIds ?? const []);
+    if (!mounted) return;
+    final label = await askMarkerLabel(context, seconds: seconds, suggestions: suggestions);
+    if (label == null || !mounted) return;
+    setState(() => _markers.add(RecordingMarker(seconds: seconds, label: label)));
+  }
 
   @override
   void initState() {
@@ -720,6 +788,7 @@ class _RecorderScreenState extends State<RecorderScreen> {
       eventId: _event?.id,
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
       durationSeconds: (_watch.elapsed.inSeconds - lost).clamp(1, 1 << 30),
+      markers: _markers,
     );
     if (sessionId != null) await Recorder.clearDraft(sessionId);
     // 2. Puis envoyé pour tout le groupe.
@@ -884,7 +953,15 @@ class _RecorderScreenState extends State<RecorderScreen> {
                         child: Icon(active ? Icons.stop_rounded : Icons.fiber_manual_record_rounded, size: 48, color: Colors.white),
                       ),
                     ),
-                    if (active) const SizedBox(width: 72),
+                    if (active) ...[
+                      const SizedBox(width: 24),
+                      IconButton.filledTonal(
+                        iconSize: 30,
+                        tooltip: 'Poser un repère (début d\'un chant)',
+                        icon: const Icon(Icons.bookmark_add_rounded),
+                        onPressed: _addMarker,
+                      ),
+                    ],
                   ]),
                 const SizedBox(height: 10),
                 Text(
@@ -900,6 +977,12 @@ class _RecorderScreenState extends State<RecorderScreen> {
                   style: TextStyle(fontFamily: 'Poppins', fontSize: 12.5, color: Colors.white.withValues(alpha: 0.75)),
                 ),
                 _cutBanner(),
+                if (_markers.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  for (final m in _markers)
+                    Text('${markerClock(m.seconds)}  ${m.label}',
+                        style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, color: AppColors.goldLight)),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent)),
@@ -938,8 +1021,12 @@ Future<List<PendingRecording>> keepRecordedParts(
   String? eventId,
   String? notes,
   int? durationSeconds,
+  List<RecordingMarker> markers = const [],
 }) async {
   final kept = <PendingRecording>[];
+  final split = parts.length == 1
+      ? [markers]
+      : markersForParts(markers, [for (final p in parts) p.seconds]);
   for (final (i, part) in parts.indexed) {
     if (part.bytes.isEmpty) continue;
     kept.add(await PendingRecordings.keep(
@@ -952,6 +1039,7 @@ Future<List<PendingRecording>> keepRecordedParts(
         notes: notes,
         mimeType: mime,
         durationSeconds: parts.length == 1 && durationSeconds != null ? durationSeconds : part.seconds,
+        markers: split[i],
       ),
     ));
   }

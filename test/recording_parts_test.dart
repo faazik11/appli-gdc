@@ -1,5 +1,6 @@
 import 'package:appli_gdc/models.dart';
 import 'package:appli_gdc/services/workshop.dart';
+import 'package:appli_gdc/widgets/recording_markers.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -31,4 +32,33 @@ void main() {
     expect(audioExtensionOf('audio/mpeg'), 'mp3');
     expect(audioExtensionOf('audio/webm;codecs=opus'), 'webm');
   });
+
+  test('repères : lus triés, gardés hors connexion, répartis entre les fichiers coupés', () {
+    final r = Recording.fromMap({
+      'id': 'r3',
+      'recorded_at': '2026-10-15T18:00:00Z',
+      'audio_path': 'a.m4a',
+      'markers': [
+        {'s': 750, 'label': 'Ave'},
+        {'s': 30, 'label': 'Échauffement'},
+      ],
+    });
+    expect(r.markers.map((m) => m.label), ['Échauffement', 'Ave']);
+    expect(markerClock(750), '12:30');
+    expect(markerClock(3725), '1:02:05');
+
+    final pending = PendingRecording(
+        key: 'k', recordedAt: _date, mimeType: 'audio/mp4', durationSeconds: 60,
+        markers: const [RecordingMarker(seconds: 5, label: 'Ave')]);
+    expect(PendingRecording.fromMap(pending.toMap()).markers.single.label, 'Ave');
+
+    final split = markersForParts(
+      const [RecordingMarker(seconds: 10, label: 'A'), RecordingMarker(seconds: 700, label: 'B')],
+      [600, 400],
+    );
+    expect(split[0].map((m) => (m.seconds, m.label)), [(10, 'A')]);
+    expect(split[1].map((m) => (m.seconds, m.label)), [(100, 'B')]);
+  });
 }
+
+final _date = DateTime(2026, 10, 15);
