@@ -25,6 +25,7 @@ dependencies:
   path_provider: ^2.1.6
   archive: ^4.5.1
   font_awesome_flutter: ^11.0.0
+  http: any
 
 dev_dependencies:
   flutter_test:

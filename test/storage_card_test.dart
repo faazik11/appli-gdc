@@ -7,7 +7,10 @@ void main() {
     const mo = 1024 * 1024;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
-        body: StorageCard(usage: () async => {'enregistrements': 700 * mo, 'booklets': 45 * mo, 'audio': 0}),
+        body: StorageCard(
+          usage: () async => {'enregistrements': 700 * mo, 'booklets': 45 * mo, 'audio': 0},
+          recordingsUsage: () async => null,
+        ),
       ),
     ));
     await tester.pumpAndSettle();
@@ -15,5 +18,17 @@ void main() {
     expect(find.text('Enregistrements et notes'), findsOneWidget);
     expect(find.text('Audios des chants'), findsNothing);
     expect(find.textContaining('L\'espace se remplit'), findsOneWidget);
+  });
+
+  testWidgets('enregistrements chez Cloudflare : seconde jauge sur 10 Go', (tester) async {
+    const mo = 1024 * 1024;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: StorageCard(usage: () async => {'booklets': 45 * mo}, recordingsUsage: () async => 1024 * mo),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('45 Mo utilisés sur 1 Go (4 %)'), findsOneWidget);
+    expect(find.text('1024 Mo utilisés sur 10 Go (10 %)'), findsOneWidget);
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
@@ -16,6 +17,23 @@ class Repository {
   static const audioBucket = 'audio';
   static const bookletsBucket = 'booklets';
   static const notesBucket = 'enregistrements';
+
+  /// Espaces rangés chez Cloudflare R2 (10 Go gratuits) au lieu de Supabase (1 Go) :
+  /// les enregistrements de répète et les notes des chants. La fonction « fichiers » donne
+  /// des liens signés ; l'appli ne connaît pas les clés R2.
+  static const r2Buckets = {notesBucket};
+
+  static Future<Map<String, dynamic>> r2(Map<String, dynamic> body) async {
+    final r = await _db.functions.invoke('fichiers', body: body);
+    return Map<String, dynamic>.from(r.data as Map);
+  }
+
+  static Future<String> _r2Url(String action, String path, [String? type]) async =>
+      (await r2({'action': action, 'path': path, if (type != null) 'type': type}))['url'] as String;
+
+  static void _check(http.BaseResponse r) {
+    if (r.statusCode >= 300) throw StorageException('Cloudflare R2 a répondu ${r.statusCode}', statusCode: '${r.statusCode}');
+  }
 
   Future<Profile?> currentProfile() async {
     final user = _db.auth.currentUser;
@@ -79,7 +97,7 @@ class Repository {
       await _db.storage.from(audioBucket).remove([song.audioPath!]);
     }
     if (song.noteAudioPath != null) {
-      await _db.storage.from(notesBucket).remove([song.noteAudioPath!]);
+      await deleteFiles(notesBucket, [song.noteAudioPath!]);
     }
   }
 
@@ -130,23 +148,56 @@ class Repository {
   Future<String> upload(String bucket, String fileName, Uint8List bytes, String contentType) async {
     final safe = fileName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
     final path = '${DateTime.now().millisecondsSinceEpoch}_$safe';
+    await put(bucket, path, bytes, contentType);
+    return path;
+  }
+
+  /// Dépose un fichier à un chemin précis (remplace s'il existe).
+  Future<void> put(String bucket, String path, Uint8List bytes, String? contentType) async {
+    if (r2Buckets.contains(bucket)) {
+      final type = contentType ?? 'application/octet-stream';
+      final url = await _r2Url('deposer', path, type);
+      _check(await http.put(Uri.parse(url), headers: {'Content-Type': type}, body: bytes));
+      return;
+    }
     await _db.storage.from(bucket).uploadBinary(
           path,
           bytes,
           fileOptions: FileOptions(contentType: contentType, upsert: true),
         );
-    return path;
   }
 
-  Future<void> deleteFiles(String bucket, List<String> paths) =>
-      _db.storage.from(bucket).remove(paths);
+  /// Le fichier existe-t-il déjà ? (restauration d'une sauvegarde)
+  Future<bool> exists(String bucket, String path) async {
+    if (r2Buckets.contains(bucket)) return (await r2({'action': 'existe', 'path': path}))['existe'] == true;
+    final slash = path.lastIndexOf('/');
+    final found = await _db.storage
+        .from(bucket)
+        .list(path: slash < 0 ? '' : path.substring(0, slash), searchOptions: SearchOptions(search: path.substring(slash + 1)));
+    return found.any((f) => f.name == path.substring(slash + 1));
+  }
 
-  Future<Uint8List> download(String bucket, String path) =>
-      _db.storage.from(bucket).download(path);
+  Future<void> deleteFiles(String bucket, List<String> paths) async {
+    if (r2Buckets.contains(bucket)) {
+      await r2({'action': 'supprimer', 'paths': paths});
+      return;
+    }
+    await _db.storage.from(bucket).remove(paths);
+  }
+
+  Future<Uint8List> download(String bucket, String path) async {
+    if (r2Buckets.contains(bucket)) {
+      final r = await http.get(Uri.parse(await _r2Url('lire', path)));
+      _check(r);
+      return r.bodyBytes;
+    }
+    return _db.storage.from(bucket).download(path);
+  }
 
   /// Lien temporaire (1 h) pour lire ou télécharger un fichier privé.
-  Future<String> signedUrl(String bucket, String path) =>
-      _db.storage.from(bucket).createSignedUrl(path, 3600);
+  Future<String> signedUrl(String bucket, String path) => r2Buckets.contains(bucket)
+      ? _r2Url('lire', path)
+      : _db.storage.from(bucket).createSignedUrl(path, 3600);
 }
 
 String audioContentType(String? extension) => switch (extension?.toLowerCase()) {

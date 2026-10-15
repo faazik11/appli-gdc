@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'repository.dart';
+
 /// Avancement affiché pendant une sauvegarde ou une restauration.
 typedef BackupProgress = void Function(String step, double fraction);
 
@@ -33,11 +35,28 @@ class Backup {
 
   factory Backup.supabase() {
     final db = Supabase.instance.client;
+    final repo = Repository.instance;
     return Backup(
-      export: () async => Map<String, dynamic>.from(await db.rpc('backup_export') as Map),
+      export: () async {
+        final data = Map<String, dynamic>.from(await db.rpc('backup_export') as Map);
+        // Les enregistrements sont chez Cloudflare R2 : la liste vient de là-bas.
+        final r2 = (await Repository.r2({'action': 'liste'}))['files'] as List;
+        data['files'] = [
+          for (final f in (data['files'] as List? ?? const []))
+            if (!Repository.r2Buckets.contains((f as Map)['bucket'])) f,
+          for (final f in r2)
+            {'bucket': Repository.notesBucket, 'path': (f as Map)['path'], 'type': null, 'size': '${f['size']}'},
+        ];
+        return data;
+      },
       restoreRows: (data) async => Map<String, dynamic>.from(await db.rpc('backup_restore', params: {'data': data}) as Map),
-      download: (bucket, path) => db.storage.from(bucket).download(path),
+      download: repo.download,
       uploadIfMissing: (bucket, path, bytes, type) async {
+        if (Repository.r2Buckets.contains(bucket)) {
+          if (await repo.exists(bucket, path)) return false;
+          await repo.put(bucket, path, bytes, type);
+          return true;
+        }
         try {
           await db.storage.from(bucket).uploadBinary(path, bytes, fileOptions: FileOptions(contentType: type, upsert: false));
           return true;
