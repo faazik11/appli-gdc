@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Carte du code graphify (régénérée au début de chaque session Claude)
+graphify-out/
