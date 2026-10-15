@@ -7,6 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../models.dart';
 import '../platform/pick_file.dart';
+import '../services/errors.dart';
 import '../services/file_store.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
@@ -107,7 +108,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         if (_filter != null && !_categories.any((c) => c.id == _filter)) _filter = null;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = explain(e));
     }
   }
 
@@ -451,7 +452,7 @@ class _EquipmentFormScreenState extends State<EquipmentFormScreen> {
         _categoryId = c.id;
       });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Catégorie non créée : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Catégorie non créée : ${explain(e)}')));
     }
   }
 
@@ -484,7 +485,7 @@ class _EquipmentFormScreenState extends State<EquipmentFormScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : ${explain(e)}')));
       }
     }
   }
@@ -669,7 +670,7 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
       await action();
       await _reload();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible : ${explain(e)}')));
     }
   }
 

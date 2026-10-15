@@ -1,7 +1,18 @@
 # Appli GDC
 
-Application de la chorale GDC : bibliothèque de chants (PDF de paroles, YouTube, audio),
-écran de répétition et générateur de livrets PDF avec sommaire et parties.
+Application du Groupe de Chant Narbonne (GDC) :
+
+- **Chants** : paroles en PDF, YouTube, audio, note de départ enregistrée ; livrets PDF générés
+  avec sommaire et parties ; mode concert (pages préparées d'avance, note du chant en cours).
+- **Agenda** : répétitions et prestations, réponses de présence, appel, historique des prestations,
+  matériel à emporter et tenue du jour.
+- **Répètes** : diapason, métronome, enregistrement des répétitions (avec repères par chant),
+  import de fichiers audio.
+- **Inventaire** : matériel du local, tenues et vêtements, avec photos.
+- **Annonces, tâches et notifications** sur le téléphone.
+- **Membres** : rôles, sauvegarde complète et jauge de stockage (admins).
+
+L'appli marche hors connexion pour tout ce qui est déjà ouvert une fois.
 
 Flutter (Android, iOS, web) + Supabase (base de données, fichiers, comptes).
 
@@ -25,18 +36,24 @@ https://faazik11.github.io/appli-gdc/
 
 - Le **premier compte créé** devient automatiquement **admin**.
 - Les comptes suivants sont **en attente** : l'admin les valide depuis l'écran *Membres*.
-- **Admin** et **Chef de chœur** ajoutent/modifient les chants et les livrets ;
-  les **Membres** consultent et écoutent.
+- **Admin** : gère les membres et leurs rôles, sauvegarde et restaure.
+- **Responsable** : écrit les annonces et confie les tâches (avec l'admin).
+- **Référents** (Chant Français, Chant Arabe, Sono, Artistique, Douf) : ajoutent et modifient
+  chants, livrets, agenda, inventaire, tenues et enregistrements (comme l'admin et le responsable).
+- **Membres** : consultent, écoutent et répondent aux événements et à leurs tâches.
 
 ## Supabase
 
-Projet `Appli GDC` (région Paris). Le schéma est dans `supabase/migrations/`.
-Les fichiers sont dans trois espaces privés : `lyrics` (PDF), `audio`, `booklets`.
+Projet `Appli GDC` (région Paris, offre gratuite : 1 Go de fichiers). Le schéma est dans
+`supabase/migrations/`, les notifications dans `supabase/functions/notifications`.
+Les fichiers sont dans des espaces privés : `lyrics` (PDF), `audio`, `booklets`,
+`enregistrements` (répétitions et notes) et `materiel` (photos).
 
 ## Tests
 
 ```bash
-flutter test   # génère build/test_booklet.pdf à partir de test/fixtures
+flutter analyze lib test
+flutter test   # génère aussi build/test_booklet.pdf à partir de test/fixtures
 ```
 
 ## Licences

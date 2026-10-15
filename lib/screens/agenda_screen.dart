@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/agenda.dart';
+import '../services/errors.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/event_widgets.dart';
@@ -84,7 +85,7 @@ class _AgendaPanelState extends State<AgendaPanel> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = 'Impossible de charger l\'agenda : $e');
+      if (mounted) setState(() => _error = 'Impossible de charger l\'agenda : ${explain(e)}');
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/agenda.dart';
+import '../services/errors.dart';
 import '../widgets/event_widgets.dart';
 import '../widgets/library_links.dart';
 import '../widgets/ui.dart';
@@ -211,7 +212,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : ${explain(e)}')));
     }
   }
 
@@ -393,7 +394,7 @@ class _WeekPlannerScreenState extends State<WeekPlannerScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : ${explain(e)}')));
     }
   }
 

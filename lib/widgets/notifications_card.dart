@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/errors.dart';
 import '../services/push_service.dart';
 
 /// Propose d'activer les notifications (rappels de répétitions, prestations, annonces).
@@ -27,7 +28,7 @@ class _NotificationsCardState extends State<NotificationsCard> {
         }),
       ));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Impossible d\'activer les notifications : $e')));
+      messenger.showSnackBar(SnackBar(content: Text('Impossible d\'activer les notifications : ${explain(e)}')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -4,6 +4,7 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../models.dart';
 import '../platform/pick_file.dart';
+import '../services/errors.dart';
 import '../services/repository.dart';
 
 /// Ajout ou modification d'un chant (réservé aux chefs de chœur et admins).
@@ -62,7 +63,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Enregistrement impossible : $e')));
+            .showSnackBar(SnackBar(content: Text('Enregistrement impossible : ${explain(e)}')));
         setState(() => _saving = false);
       }
     }
@@ -80,7 +81,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
       ),
     );
     if (ok != true) return;
-    await _repo.deleteSong(widget.song!);
+    if (!await attempt(() => _repo.deleteSong(widget.song!), what: 'Suppression impossible')) return;
     if (mounted) Navigator.pop(context, true);
   }
 

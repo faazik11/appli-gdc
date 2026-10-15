@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -10,6 +11,7 @@ import 'screens/home_screen.dart';
 import 'screens/new_password_screen.dart';
 import 'screens/pending_screen.dart';
 import 'services/appearance.dart';
+import 'services/errors.dart';
 import 'services/offline.dart';
 import 'services/repository.dart';
 import 'theme.dart';
@@ -26,6 +28,7 @@ Future<void> main() async {
     authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit),
   );
   await Appearance.load();
+  PlatformDispatcher.instance.onError = reportUncaught;
   runApp(const AppliGdc());
 }
 
@@ -39,6 +42,7 @@ class AppliGdc extends StatelessWidget {
       builder: (context, mode, _) => MaterialApp(
       title: 'Appli GDC',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: messenger,
       locale: const Locale('fr', 'FR'),
       supportedLocales: const [Locale('fr', 'FR')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
