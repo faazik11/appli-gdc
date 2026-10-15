@@ -460,6 +460,9 @@ class Recording {
   /// Suites lues après le fichier principal (audio importé, autre enregistrement fusionné).
   final List<RecordingPart> extraParts;
 
+  /// Repères « chant X à 12:30 », triés par moment.
+  final List<RecordingMarker> markers;
+
   const Recording({
     required this.id,
     required this.recordedAt,
@@ -469,6 +472,7 @@ class Recording {
     required this.audioPath,
     this.durationSeconds,
     this.extraParts = const [],
+    this.markers = const [],
   });
 
   /// Tous les morceaux dans l'ordre d'écoute ; la durée du premier se déduit du total.
@@ -492,6 +496,10 @@ class Recording {
           for (final p in (m['extra_parts'] as List? ?? const []))
             RecordingPart.fromMap(Map<String, dynamic>.from(p as Map)),
         ],
+        markers: RecordingMarker.sorted([
+          for (final k in (m['markers'] as List? ?? const []))
+            RecordingMarker.fromMap(Map<String, dynamic>.from(k as Map)),
+        ]),
       );
 }
 
@@ -506,6 +514,24 @@ class RecordingPart {
       RecordingPart(path: m['path'] as String, seconds: (m['seconds'] as num?)?.toInt());
 
   Map<String, dynamic> toMap() => {'path': path, 'seconds': seconds};
+}
+
+/// Repère dans un enregistrement : un moment (en secondes depuis le début) et ce qui commence là.
+class RecordingMarker {
+  final int seconds;
+  final String label;
+
+  const RecordingMarker({required this.seconds, required this.label});
+
+  factory RecordingMarker.fromMap(Map<String, dynamic> m) =>
+      RecordingMarker(seconds: (m['s'] as num).toInt(), label: m['label'] as String? ?? '');
+
+  Map<String, dynamic> toMap() => {'s': seconds, 'label': label};
+
+  RecordingMarker shift(int by) => RecordingMarker(seconds: seconds + by, label: label);
+
+  static List<RecordingMarker> sorted(Iterable<RecordingMarker> markers) =>
+      [...markers]..sort((a, b) => a.seconds.compareTo(b.seconds));
 }
 
 /// Où en est une personne chargée d'une tâche.

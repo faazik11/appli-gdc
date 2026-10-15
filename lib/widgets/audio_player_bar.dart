@@ -21,10 +21,10 @@ class AudioPlayerBar extends StatefulWidget {
   const AudioPlayerBar.parts({super.key, required this.urls, this.partDurations = const [], this.duration});
 
   @override
-  State<AudioPlayerBar> createState() => _AudioPlayerBarState();
+  State<AudioPlayerBar> createState() => AudioPlayerBarState();
 }
 
-class _AudioPlayerBarState extends State<AudioPlayerBar> {
+class AudioPlayerBarState extends State<AudioPlayerBar> {
   final _player = AudioPlayer();
   String? _error;
 
@@ -105,6 +105,15 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
       }
       start += len;
     }
+  }
+
+  /// Moment écouté, sur la barre de temps commune (pour poser un repère).
+  Duration get position => _position;
+
+  /// Va à [target] et lance la lecture (repères).
+  void playFrom(Duration target) {
+    _seekTo(target);
+    _player.play();
   }
 
   void _seekBy(int seconds) => _seekTo(_position + Duration(seconds: seconds));

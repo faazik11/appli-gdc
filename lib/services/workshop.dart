@@ -57,8 +57,12 @@ abstract class WorkBackend {
     String? notes,
     required String audioPath,
     int? durationSeconds,
+    List<RecordingMarker> markers,
   });
   Future<void> updateRecording(String id, {String? title, String? notes});
+
+  /// Remplace les repères d'un enregistrement.
+  Future<Recording> setRecordingMarkers(Recording r, List<RecordingMarker> markers);
   Future<void> deleteRecording(Recording r);
 
   /// Ajoute un fichier déjà déposé à la suite d'un enregistrement.
@@ -248,6 +252,7 @@ class SupabaseWork implements WorkBackend {
     String? notes,
     required String audioPath,
     int? durationSeconds,
+    List<RecordingMarker> markers = const [],
   }) =>
       _db.from('recordings').insert({
         'recorded_at': recordedAt.toUtc().toIso8601String(),
@@ -256,7 +261,19 @@ class SupabaseWork implements WorkBackend {
         'notes': _clean(notes),
         'audio_path': audioPath,
         'duration_seconds': durationSeconds,
+        if (markers.isNotEmpty) 'markers': [for (final m in markers) m.toMap()],
       });
+
+  @override
+  Future<Recording> setRecordingMarkers(Recording r, List<RecordingMarker> markers) async {
+    final row = await _db
+        .from('recordings')
+        .update({'markers': [for (final m in RecordingMarker.sorted(markers)) m.toMap()]})
+        .eq('id', r.id)
+        .select()
+        .single();
+    return Recording.fromMap(row);
+  }
 
   @override
   Future<void> updateRecording(String id, {String? title, String? notes}) =>
@@ -268,13 +285,15 @@ class SupabaseWork implements WorkBackend {
     await _repo.deleteFiles(WorkBackend.recordingsBucket, [for (final p in r.parts) p.path]);
   }
 
-  Future<Recording> _setParts(Recording r, List<RecordingPart> extra, int? total, {String? notes}) async {
+  Future<Recording> _setParts(Recording r, List<RecordingPart> extra, int? total,
+      {String? notes, List<RecordingMarker>? markers}) async {
     final row = await _db
         .from('recordings')
         .update({
           'extra_parts': [for (final p in extra) p.toMap()],
           'duration_seconds': total,
           if (notes != null) 'notes': notes,
+          if (markers != null) 'markers': [for (final m in markers) m.toMap()],
         })
         .eq('id', r.id)
         .select()
@@ -292,7 +311,11 @@ class SupabaseWork implements WorkBackend {
   Future<Recording> mergeRecordings(Recording r, Recording other) async {
     final notes = [r.notes, other.notes].whereType<String>().where((n) => n.trim().isNotEmpty).join('\n\n');
     final merged = await _setParts(r, [...r.extraParts, ...other.parts], _sum(r.durationSeconds, other.durationSeconds),
-        notes: notes.isEmpty ? null : notes);
+        notes: notes.isEmpty ? null : notes,
+        // Les repères de l'autre se placent après la fin de celui-ci (si sa durée est connue).
+        markers: r.durationSeconds == null && other.markers.isNotEmpty
+            ? null
+            : [...r.markers, for (final m in other.markers) m.shift(r.durationSeconds ?? 0)]);
     // Les fichiers restent : ils font maintenant partie de l'enregistrement fusionné.
     await _db.from('recordings').delete().eq('id', other.id);
     return merged;
@@ -380,6 +403,7 @@ class PendingRecording {
   final String? notes;
   final String mimeType;
   final int durationSeconds;
+  final List<RecordingMarker> markers;
 
   const PendingRecording({
     required this.key,
@@ -389,6 +413,7 @@ class PendingRecording {
     this.notes,
     required this.mimeType,
     required this.durationSeconds,
+    this.markers = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -399,6 +424,7 @@ class PendingRecording {
         'notes': notes,
         'mimeType': mimeType,
         'duration': durationSeconds,
+        'markers': [for (final m in markers) m.toMap()],
       };
 
   factory PendingRecording.fromMap(Map<String, dynamic> m) => PendingRecording(
@@ -409,6 +435,10 @@ class PendingRecording {
         notes: m['notes'] as String?,
         mimeType: m['mimeType'] as String,
         durationSeconds: (m['duration'] as num).toInt(),
+        markers: [
+          for (final k in (m['markers'] as List? ?? const []))
+            RecordingMarker.fromMap(Map<String, dynamic>.from(k as Map)),
+        ],
       );
 
   String get extension => audioExtensionOf(mimeType);
@@ -456,6 +486,7 @@ class PendingRecordings {
       notes: p.notes,
       audioPath: path,
       durationSeconds: p.durationSeconds > 0 ? p.durationSeconds : null,
+      markers: p.markers,
     );
     // Déjà sur le téléphone : réécoute immédiate sans retéléchargement.
     await FileStore.instance.keep(WorkBackend.recordingsBucket, path, bytes);
