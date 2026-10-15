@@ -59,6 +59,13 @@ void main() {
     expect(split[0].map((m) => (m.seconds, m.label)), [(10, 'A')]);
     expect(split[1].map((m) => (m.seconds, m.label)), [(100, 'B')]);
   });
+
+  test('repères : recherche de chant sans tenir compte des accents ni des majuscules', () {
+    final titles = ['Prière du soir', 'Ave Maria', 'Ya Khayra al-Anam', 'Priere 2'];
+    expect(searchTitles(titles, 'priere'), ['Prière du soir', 'Priere 2']);
+    expect(searchTitles(titles, '  '), isEmpty);
+    expect(searchTitles(List.generate(150, (i) => 'Chant $i'), 'chant').length, 6);
+  });
 }
 
 final _date = DateTime(2026, 10, 15);

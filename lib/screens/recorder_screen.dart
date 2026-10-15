@@ -46,9 +46,9 @@ class _RecorderScreenState extends State<RecorderScreen> {
 
   Future<void> _addMarker() async {
     final seconds = _recordedSeconds;
-    final suggestions = await markerSuggestions(firstIds: _event?.songIds ?? const []);
+    final songs = await markerSuggestions(eventSongIds: _event?.songIds ?? const []);
     if (!mounted) return;
-    final label = await askMarkerLabel(context, seconds: seconds, suggestions: suggestions);
+    final label = await askMarkerLabel(context, seconds: seconds, pinned: songs.pinned, all: songs.all);
     if (label == null || !mounted) return;
     setState(() => _markers.add(RecordingMarker(seconds: seconds, label: label)));
   }
