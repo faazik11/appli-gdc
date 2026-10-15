@@ -291,6 +291,10 @@ class _SongScreenState extends State<SongScreen> {
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     _focusButton(Icons.arrow_back_rounded, 'Retour', () => Navigator.pop(context)),
                     const SizedBox(width: 8),
+                    if (_notePath != null) ...[
+                      NoteButton(path: _notePath!, songTitle: song.title),
+                      const SizedBox(width: 8),
+                    ],
                     _focusButton(Icons.fullscreen_exit_rounded, 'Afficher le lecteur', () => setState(() {
                           _focusRequested = false;
                           _showControlsInLandscape = true;

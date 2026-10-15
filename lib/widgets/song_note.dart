@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../models.dart';
 import '../platform/recorder.dart';
 import '../services/file_store.dart';
 import '../services/repository.dart';
@@ -366,4 +367,98 @@ class _SongNoteSheetState extends State<_SongNoteSheet> {
       ),
     );
   }
+}
+
+/// Notes des chants d'un livret, par titre (tel qu'il apparaît dans le sommaire du PDF).
+/// Un chant sans note a la valeur null : il « couvre » ses pages sans proposer de note.
+Map<String, String?> bookletNotes(Booklet booklet, List<Song> songs) {
+  final byId = {for (final s in songs) s.id: s};
+  return {
+    for (final part in booklet.parts)
+      for (final id in part.songIds)
+        if (byId[id] != null) byId[id]!.title: byId[id]!.noteAudioPath,
+  };
+}
+
+/// Chant affiché à la page [page] d'un livret : la dernière entrée du sommaire qui commence
+/// avant ou sur cette page et qui est un chant du livret (les titres de parties sont ignorés).
+String? songAtPage(List<OutlineEntry> outline, Set<String> songTitles, int page) {
+  OutlineEntry? current;
+  for (final e in outline) {
+    if (e.page <= page && songTitles.contains(e.title) && (current == null || e.page >= current.page)) current = e;
+  }
+  return current?.title;
+}
+
+/// Garde les notes sur l'appareil pour les écouter sans réseau (mode concert).
+void keepNotesOffline(Iterable<String?> paths) {
+  for (final p in paths) {
+    if (p != null) FileStore.instance.load(Repository.notesBucket, p).ignore();
+  }
+}
+
+/// Bouton rond qui joue la note de départ d'un chant en un seul toucher (toucher encore pour arrêter).
+class NoteButton extends StatefulWidget {
+  final String path;
+  final String songTitle;
+
+  const NoteButton({super.key, required this.path, required this.songTitle});
+
+  @override
+  State<NoteButton> createState() => _NoteButtonState();
+}
+
+class _NoteButtonState extends State<NoteButton> {
+  final _player = AudioPlayer();
+  bool _playing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.playerStateStream.listen((s) {
+      final playing = s.playing && s.processingState != ProcessingState.completed;
+      if (s.processingState == ProcessingState.completed) _player.pause();
+      if (mounted && playing != _playing) setState(() => _playing = playing);
+    });
+  }
+
+  @override
+  void didUpdateWidget(NoteButton old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path) _player.stop();
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_playing) {
+      await _player.pause();
+      return;
+    }
+    try {
+      await _player.setUrl(await SupabaseWork().audioUrl(widget.path));
+      await _player.seek(Duration.zero);
+      _player.play();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lecture de la note impossible pour le moment.')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: _playing ? AppColors.gold : AppColors.aubergine.withValues(alpha: 0.75),
+        shape: const CircleBorder(),
+        child: IconButton(
+          tooltip: _playing ? 'Arrêter la note' : 'Note de départ : ${widget.songTitle}',
+          icon: Icon(_playing ? Icons.stop_rounded : Icons.music_note_rounded,
+              color: _playing ? AppColors.aubergine : Colors.white),
+          onPressed: _toggle,
+        ),
+      );
 }
