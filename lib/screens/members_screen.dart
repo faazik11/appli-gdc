@@ -4,6 +4,7 @@ import '../models.dart';
 import '../services/repository.dart';
 import '../theme.dart';
 import '../widgets/backup_card.dart';
+import '../widgets/storage_card.dart';
 import '../widgets/ui.dart';
 
 /// Validation des nouveaux comptes et attribution des rôles (admin uniquement).
@@ -94,6 +95,11 @@ class _MembersPanelState extends State<MembersPanel> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                 child: const BackupCard(),
+              ),
+              const SectionHeader('Stockage'),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: StorageCard(),
               ),
             ]),
           ),

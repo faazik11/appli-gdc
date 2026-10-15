@@ -19,6 +19,7 @@ import '../widgets/announcements.dart';
 import '../widgets/install_card.dart';
 import '../widgets/library_links.dart';
 import '../widgets/notifications_card.dart';
+import '../widgets/song_note.dart';
 import '../widgets/tasks_section.dart';
 import '../widgets/ui.dart';
 import 'agenda_screen.dart';
@@ -157,7 +158,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openConcert(Booklet b) {
     if (b.pdfPath == null) return;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ConcertScreen(title: b.title, bucket: Repository.bookletsBucket, path: b.pdfPath!),
+      builder: (_) => ConcertScreen(
+          title: b.title, bucket: Repository.bookletsBucket, path: b.pdfPath!, notes: bookletNotes(b, _data.songs)),
     ));
   }
 
@@ -173,7 +175,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openBooklet(Booklet b) {
     if (b.pdfPath == null) return;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => PdfViewScreen(title: b.title, bucket: Repository.bookletsBucket, path: b.pdfPath!),
+      builder: (_) => PdfViewScreen(
+          title: b.title, bucket: Repository.bookletsBucket, path: b.pdfPath!, notes: bookletNotes(b, _data.songs)),
     ));
   }
 

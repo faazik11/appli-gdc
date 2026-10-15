@@ -8,6 +8,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/page_images.dart';
 import '../theme.dart';
 import '../widgets/pdf_pages_view.dart';
+import '../widgets/song_note.dart';
 
 /// Mode concert : le livret en plein écran, page par page, écran toujours allumé.
 /// Toutes les pages sont préparées en images à l'avance (et gardées sur l'appareil)
@@ -17,7 +18,10 @@ class ConcertScreen extends StatefulWidget {
   final String bucket;
   final String path;
 
-  const ConcertScreen({super.key, required this.title, required this.bucket, required this.path});
+  /// Notes de départ des chants du livret, par titre (voir [bookletNotes]).
+  final Map<String, String?> notes;
+
+  const ConcertScreen({super.key, required this.title, required this.bucket, required this.path, this.notes = const {}});
 
   @override
   State<ConcertScreen> createState() => _ConcertScreenState();
@@ -39,6 +43,7 @@ class _ConcertScreenState extends State<ConcertScreen> {
     super.initState();
     WakelockPlus.enable().catchError((_) {});
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    keepNotesOffline(widget.notes.values);
   }
 
   @override
@@ -76,6 +81,14 @@ class _ConcertScreenState extends State<ConcertScreen> {
         precacheImage(MemoryImage(_pages[k]!), context);
       }
     }
+  }
+
+  /// Chant de la page affichée et sa note, s'il en a une.
+  (String, String)? get _currentNote {
+    final outline = _images?.outline ?? const [];
+    final song = songAtPage(outline, widget.notes.keys.toSet(), _page);
+    final path = song == null ? null : widget.notes[song];
+    return path == null ? null : (song!, path);
   }
 
   void _turn(int delta) {
@@ -198,6 +211,11 @@ class _ConcertScreenState extends State<ConcertScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontFamily: 'Poppins', color: Colors.white, fontWeight: FontWeight.w600)),
                         ),
+                        if (_currentNote case (final song, final path))
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: NoteButton(path: path, songTitle: song),
+                          ),
                         if (!_fallback && _pages.isNotEmpty)
                           IconButton(
                             tooltip: 'Sommaire',

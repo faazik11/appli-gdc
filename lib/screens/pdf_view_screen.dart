@@ -11,7 +11,10 @@ class PdfViewScreen extends StatefulWidget {
   final String bucket;
   final String path;
 
-  const PdfViewScreen({super.key, required this.title, required this.bucket, required this.path});
+  /// Notes de départ des chants, transmises au mode concert.
+  final Map<String, String?> notes;
+
+  const PdfViewScreen({super.key, required this.title, required this.bucket, required this.path, this.notes = const {}});
 
   @override
   State<PdfViewScreen> createState() => _PdfViewScreenState();
@@ -30,7 +33,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
             tooltip: 'Mode concert',
             icon: const Icon(Icons.fullscreen_rounded),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => ConcertScreen(title: widget.title, bucket: widget.bucket, path: widget.path),
+              builder: (_) => ConcertScreen(title: widget.title, bucket: widget.bucket, path: widget.path, notes: widget.notes),
             )),
           ),
           IconButton(
