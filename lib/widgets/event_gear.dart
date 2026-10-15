@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../screens/inventory_screen.dart' show StoredPhoto;
+import '../services/errors.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
 
@@ -59,7 +60,7 @@ class _EventGearSectionState extends State<EventGearSection> {
       await widget.work.setEventGear(widget.eventId, picked);
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Matériel non enregistré : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Matériel non enregistré : ${explain(e)}')));
     }
   }
 
@@ -72,7 +73,7 @@ class _EventGearSectionState extends State<EventGearSection> {
       await widget.work.setGearPacked(widget.eventId, g.equipmentId, !g.packed);
     } catch (e) {
       await _load();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Pas enregistré : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Pas enregistré : ${explain(e)}')));
     }
   }
 

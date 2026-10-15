@@ -8,6 +8,7 @@ import 'package:just_audio/just_audio.dart';
 import '../models.dart';
 import '../platform/pick_file.dart';
 import '../services/agenda.dart';
+import '../services/errors.dart';
 import '../services/file_store.dart';
 import '../services/workshop.dart';
 import '../widgets/ui.dart';
@@ -168,7 +169,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import impossible : $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import impossible : ${explain(e)}')));
     }
   }
 

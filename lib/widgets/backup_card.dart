@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../platform/device_files.dart';
 import '../platform/pick_file.dart';
 import '../services/backup.dart';
+import '../services/errors.dart';
 import '../theme.dart';
 
 /// Sauvegarde complète à garder sur l'ordinateur, et restauration (admins, onglet Membres).
@@ -73,7 +74,7 @@ class _BackupCardState extends State<BackupCard> {
     Navigator.of(context, rootNavigator: true).pop();
     if (error != null) {
       await _message('Ça n\'a pas marché',
-          error is FormatException ? error.message : 'Vérifiez la connexion internet et réessayez.\n\n$error');
+          error is FormatException ? error.message : explain(error));
     }
     return result;
   }

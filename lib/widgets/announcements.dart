@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models.dart';
 import '../services/agenda.dart';
+import '../services/errors.dart';
 import '../theme.dart';
 import 'ui.dart';
 
@@ -146,8 +147,7 @@ class AnnouncementsSectionState extends State<AnnouncementsSection> {
       ),
     );
     if (ok != true) return;
-    await widget.backend.deleteAnnouncement(a.id);
-    _load();
+    if (await attempt(() => widget.backend.deleteAnnouncement(a.id), what: 'Suppression impossible')) _load();
   }
 
   @override

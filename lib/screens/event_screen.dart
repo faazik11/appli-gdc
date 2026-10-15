@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models.dart';
 import '../services/agenda.dart';
+import '../services/errors.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
 import '../widgets/event_gear.dart';
@@ -61,7 +62,7 @@ class _EventScreenState extends State<EventScreen> {
       _changed = true;
       await _refresh();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Action impossible : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Action impossible : ${explain(e)}')));
     }
   }
 
@@ -88,7 +89,7 @@ class _EventScreenState extends State<EventScreen> {
       ),
     );
     if (ok != true) return;
-    await widget.backend.deleteEvent(_event.id);
+    if (!await attempt(() => widget.backend.deleteEvent(_event.id), what: 'Suppression impossible')) return;
     if (mounted) Navigator.pop(context, true);
   }
 

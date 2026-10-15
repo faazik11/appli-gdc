@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/errors.dart';
 import '../theme.dart';
 import '../widgets/ui.dart';
 
@@ -47,7 +48,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
           ? 'Choisis un mot de passe différent de l\'ancien.'
           : (m.contains('session') ? 'Le lien a expiré. Redemande un e-mail depuis « Mot de passe oublié ? ».' : e.message));
     } catch (e) {
-      setState(() => _error = 'Impossible de changer le mot de passe : $e');
+      setState(() => _error = 'Impossible de changer le mot de passe : ${explain(e)}');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

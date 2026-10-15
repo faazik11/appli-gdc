@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'file_store.dart';
+import 'errors.dart';
 
 /// Pages d'un PDF converties en images (une seule fois, puis gardées sur l'appareil).
 /// Les pages s'affichent ensuite instantanément, même hors connexion.
@@ -65,7 +66,7 @@ class PageImages extends ChangeNotifier {
       notifyListeners();
       await _renderAll();
     } catch (e) {
-      error = '$e';
+      error = explain(e);
       _done = true;
       if (!_disposed) notifyListeners();
     }

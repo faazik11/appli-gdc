@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../platform/pick_file.dart';
+import '../services/errors.dart';
 import '../services/file_store.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
@@ -113,7 +114,7 @@ class _OutfitsScreenState extends State<OutfitsScreen> with SingleTickerProvider
       final o = await widget.backend.outfits();
       if (mounted) setState(() => _outfits = o);
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = explain(e));
     }
   }
 
@@ -267,7 +268,7 @@ class _GarmentSheetState extends State<_GarmentSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : ${explain(e)}')));
       }
     }
   }
@@ -293,7 +294,7 @@ class _GarmentSheetState extends State<_GarmentSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Suppression impossible : $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Suppression impossible : ${explain(e)}')));
       }
     }
   }
@@ -386,7 +387,7 @@ class GarmentsListState extends State<GarmentsList> {
       final g = await widget.backend.garments();
       if (mounted) setState(() => _garments = g);
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = explain(e));
     }
   }
 
@@ -645,7 +646,7 @@ class _OutfitFormScreenState extends State<OutfitFormScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : ${explain(e)}')));
       }
     }
   }
@@ -855,7 +856,7 @@ class _EventOutfitSectionState extends State<EventOutfitSection> {
       await widget.work.setEventOutfit(widget.eventId, choice is Outfit ? choice.id : null);
       widget.onChanged();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tenue non enregistrée : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tenue non enregistrée : ${explain(e)}')));
     }
   }
 

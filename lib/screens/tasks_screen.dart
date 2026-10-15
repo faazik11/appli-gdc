@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models.dart';
 import '../services/agenda.dart';
+import '../services/errors.dart';
 import '../services/tasks.dart';
 import '../theme.dart';
 import '../widgets/event_widgets.dart';
@@ -73,7 +74,7 @@ class _TasksScreenState extends State<TasksScreen> {
         _error = null;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = 'Impossible de charger les tâches : $e');
+      if (mounted) setState(() => _error = 'Impossible de charger les tâches : ${explain(e)}');
     }
   }
 
@@ -342,7 +343,7 @@ class _TaskScreenState extends State<TaskScreen> {
         TaskStatus.aFaire => 'La tâche est de nouveau à faire.',
       });
     } catch (e) {
-      _snack('Réponse non enregistrée : $e');
+      _snack('Réponse non enregistrée : ${explain(e)}');
     }
   }
 
@@ -355,7 +356,7 @@ class _TaskScreenState extends State<TaskScreen> {
       _input.clear();
       await _loadMessages();
     } catch (e) {
-      _snack('Message non envoyé : $e');
+      _snack('Message non envoyé : ${explain(e)}');
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -377,7 +378,7 @@ class _TaskScreenState extends State<TaskScreen> {
       await widget.backend.deleteMessage(m.id);
       await _loadMessages();
     } catch (e) {
-      _snack('Impossible de retirer le message : $e');
+      _snack('Impossible de retirer le message : ${explain(e)}');
     }
   }
 
@@ -408,7 +409,7 @@ class _TaskScreenState extends State<TaskScreen> {
       await widget.backend.deleteTask(_task.id);
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      _snack('Impossible de supprimer : $e');
+      _snack('Impossible de supprimer : ${explain(e)}');
     }
   }
 
@@ -680,7 +681,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tâche non enregistrée : $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tâche non enregistrée : ${explain(e)}')));
     }
   }
 

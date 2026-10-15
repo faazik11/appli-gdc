@@ -7,6 +7,7 @@ import '../models.dart';
 import '../platform/pick_file.dart';
 import '../services/agenda.dart';
 import '../services/appearance.dart';
+import '../services/errors.dart';
 import '../services/file_store.dart';
 import '../services/offline.dart';
 import '../services/page_images.dart';
@@ -109,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Impossible de charger les chants : $e';
+        _error = 'Impossible de charger les chants : ${explain(e)}';
       });
     }
   }
@@ -464,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final result = await PushService.enable();
       _snack(result == PushState.on ? 'Notifications activées.' : 'Notifications pas activées.');
     } catch (e) {
-      _snack('Impossible d\'activer les notifications : $e');
+      _snack('Impossible d\'activer les notifications : ${explain(e)}');
     }
   }
 

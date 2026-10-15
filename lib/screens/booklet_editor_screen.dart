@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../models.dart';
 import '../services/booklet_builder.dart';
+import '../services/errors.dart';
 import '../services/repository.dart';
 import 'pdf_view_screen.dart';
 
@@ -90,7 +91,7 @@ class _BookletEditorScreenState extends State<BookletEditorScreen> {
       if (!mounted) return;
       setState(() => _progress = null);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Génération impossible : $e')));
+          .showSnackBar(SnackBar(content: Text('Génération impossible : ${explain(e)}')));
     }
   }
 

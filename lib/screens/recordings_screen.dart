@@ -7,6 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models.dart';
 import '../platform/recorder.dart';
 import '../services/agenda.dart';
+import '../services/errors.dart';
 import '../services/repository.dart';
 import '../services/workshop.dart';
 import '../theme.dart';
@@ -88,7 +89,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = explain(e));
     }
   }
 
@@ -159,7 +160,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enregistrement envoyé.')));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Envoi impossible pour l\'instant ($e). Il reste gardé sur ce téléphone.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Envoi impossible : ${explain(e)} Il reste gardé sur ce téléphone.')));
       }
     }
     if (mounted) setState(() => _sending = null);
@@ -369,7 +370,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
       _replace(await action());
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done)));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible pour l\'instant : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible pour l\'instant : ${explain(e)}')));
     }
     if (mounted) setState(() => _adding = false);
   }
@@ -408,7 +409,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
     try {
       others = (await widget.backend.recordings()).where((r) => r.id != _rec.id).toList();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Chargement impossible : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Chargement impossible : ${explain(e)}')));
       return;
     }
     if (!mounted) return;
@@ -486,7 +487,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
       _changed = true;
       if (mounted) setState(() => _rec = r);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Repère non enregistré (connexion ?) : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Repère non enregistré : ${explain(e)}')));
     }
   }
 
@@ -500,7 +501,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Points abordés enregistrés.')));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement impossible : ${explain(e)}')));
     }
     if (mounted) setState(() => _saving = false);
   }
@@ -517,7 +518,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
       ),
     );
     if (ok != true) return;
-    await widget.backend.deleteRecording(_rec);
+    if (!await attempt(() => widget.backend.deleteRecording(_rec), what: 'Suppression impossible')) return;
     if (mounted) Navigator.pop(context, true);
   }
 
@@ -559,7 +560,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
                     child: FutureBuilder<List<String>>(
                       future: _urls,
                       builder: (context, snap) => snap.hasError
-                          ? ListTile(leading: const Icon(Icons.error_outline), title: Text('Lecture impossible : ${snap.error}'))
+                          ? ListTile(leading: const Icon(Icons.error_outline), title: Text('Lecture impossible : ${explain(snap.error!)}'))
                           : !snap.hasData
                               ? const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
                               : AudioPlayerBar.parts(
@@ -733,7 +734,7 @@ class _RecorderScreenState extends State<RecorderScreen> {
     try {
       _mime = await _recorder.start();
     } catch (e) {
-      setState(() => _error = 'Micro inaccessible. Autorise l\'accès au micro pour cette appli puis réessaie.\n($e)');
+      setState(() => _error = 'Micro inaccessible. Autorise l\'accès au micro pour cette appli puis réessaie.');
       return;
     }
     WakelockPlus.enable().catchError((_) {});
