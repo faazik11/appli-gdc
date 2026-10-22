@@ -58,6 +58,7 @@ abstract class WorkBackend {
     required String audioPath,
     int? durationSeconds,
     List<RecordingMarker> markers,
+    List<RecordingPart> extraParts,
   });
   Future<void> updateRecording(String id, {String? title, String? notes});
 
@@ -253,6 +254,7 @@ class SupabaseWork implements WorkBackend {
     required String audioPath,
     int? durationSeconds,
     List<RecordingMarker> markers = const [],
+    List<RecordingPart> extraParts = const [],
   }) =>
       _db.from('recordings').insert({
         'recorded_at': recordedAt.toUtc().toIso8601String(),
@@ -262,6 +264,7 @@ class SupabaseWork implements WorkBackend {
         'audio_path': audioPath,
         'duration_seconds': durationSeconds,
         if (markers.isNotEmpty) 'markers': [for (final m in markers) m.toMap()],
+        if (extraParts.isNotEmpty) 'extra_parts': [for (final p in extraParts) p.toMap()],
       });
 
   @override
@@ -405,6 +408,9 @@ class PendingRecording {
   final int durationSeconds;
   final List<RecordingMarker> markers;
 
+  /// Fichiers suivants (après une pause ou une coupure) : ici [RecordingPart.path] est leur clé sur le téléphone.
+  final List<RecordingPart> extraFiles;
+
   const PendingRecording({
     required this.key,
     required this.recordedAt,
@@ -414,6 +420,7 @@ class PendingRecording {
     required this.mimeType,
     required this.durationSeconds,
     this.markers = const [],
+    this.extraFiles = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -425,6 +432,7 @@ class PendingRecording {
         'mimeType': mimeType,
         'duration': durationSeconds,
         'markers': [for (final m in markers) m.toMap()],
+        'extraFiles': [for (final p in extraFiles) p.toMap()],
       };
 
   factory PendingRecording.fromMap(Map<String, dynamic> m) => PendingRecording(
@@ -438,6 +446,10 @@ class PendingRecording {
         markers: [
           for (final k in (m['markers'] as List? ?? const []))
             RecordingMarker.fromMap(Map<String, dynamic>.from(k as Map)),
+        ],
+        extraFiles: [
+          for (final p in (m['extraFiles'] as List? ?? const []))
+            RecordingPart.fromMap(Map<String, dynamic>.from(p as Map)),
         ],
       );
 
@@ -479,6 +491,13 @@ class PendingRecordings {
     }
     final stamp = '${p.recordedAt.year}-${p.recordedAt.month.toString().padLeft(2, '0')}-${p.recordedAt.day.toString().padLeft(2, '0')}';
     final path = await backend.upload(WorkBackend.recordingsBucket, 'repetition_$stamp.${p.extension}', bytes, p.contentType);
+    final extra = <(RecordingPart, Uint8List)>[];
+    for (final f in p.extraFiles) {
+      final b = await deviceGet(f.path);
+      if (b == null || b.isEmpty) continue;
+      final at = await backend.upload(WorkBackend.recordingsBucket, 'repetition_${stamp}_suite.${p.extension}', b, p.contentType);
+      extra.add((RecordingPart(path: at, seconds: f.seconds), b));
+    }
     await backend.saveRecording(
       recordedAt: p.recordedAt,
       eventId: p.eventId,
@@ -487,15 +506,21 @@ class PendingRecordings {
       audioPath: path,
       durationSeconds: p.durationSeconds > 0 ? p.durationSeconds : null,
       markers: p.markers,
+      extraParts: [for (final (part, _) in extra) part],
     );
     // Déjà sur le téléphone : réécoute immédiate sans retéléchargement.
     await FileStore.instance.keep(WorkBackend.recordingsBucket, path, bytes);
-    await _save((await list()).where((e) => e.key != p.key).toList());
-    await deviceDelete(p.key);
+    for (final (part, b) in extra) {
+      await FileStore.instance.keep(WorkBackend.recordingsBucket, part.path, b);
+    }
+    await discard(p);
   }
 
   static Future<void> discard(PendingRecording p) async {
     await _save((await list()).where((e) => e.key != p.key).toList());
     await deviceDelete(p.key);
+    for (final f in p.extraFiles) {
+      await deviceDelete(f.path);
+    }
   }
 }

@@ -239,14 +239,17 @@ window.gdcRecorder = {
     });
   },
 
-  // Un « segment » = un fichier audio. Il n'y en a qu'un, sauf si l'iPhone a arrêté l'enregistreur.
+  // Un « segment » = un fichier audio. Un nouveau à chaque reprise après une pause, ou si l'iPhone
+  // a arrêté l'enregistreur. (Pas de pause() de MediaRecorder : sur iPhone, après resume(), il ne
+  // produit plus aucun son tout en se disant actif.)
   _newSegment() {
     const r = rec;
     const recorder = new MediaRecorder(r.stream, { mimeType: r.mimeType, audioBitsPerSecond: 32000 });
-    const seg = { index: r.segments.length, chunks: [], startedAt: Date.now(), endedAt: null, pausedMs: 0 };
+    const seg = { index: r.segments.length, chunks: [], startedAt: Date.now(), endedAt: null, lastDataAt: Date.now() };
     r.segments.push(seg);
     recorder.ondataavailable = (e) => {
       if (!e.data.size) return;
+      seg.lastDataAt = Date.now();
       seg.chunks.push(e.data);
       if (!r.db) return;
       // Écrit dans l'ordre, morceau après morceau.
@@ -268,7 +271,7 @@ window.gdcRecorder = {
   _watch() {
     const r = rec;
     const mark = () => {
-      if (rec !== r || r.broken) return;
+      if (rec !== r || r.broken || r.paused) return;
       r.broken = true;
       r.cuts++;
       r.brokenAt = r.hiddenAt || Date.now();
@@ -280,6 +283,8 @@ window.gdcRecorder = {
         // Retour dans l'appli : on vérifie que tout tourne encore, sinon on répare.
         if (r.hiddenAt && Date.now() - r.hiddenAt > 2000 && !this._healthy()) mark();
         r.hiddenAt = null;
+        // On laisse 15 s à l'enregistreur pour redonner du son avant de le déclarer bloqué.
+        r.segments[r.segments.length - 1].lastDataAt = Date.now();
         this.heal();
       }
     };
@@ -290,7 +295,17 @@ window.gdcRecorder = {
     });
     r.check = setInterval(() => {
       if (rec !== r) return clearInterval(r.check);
-      if (!this._healthy()) {
+      // L'enregistreur se dit actif mais plus aucun son n'arrive : on le remplace par un neuf.
+      const seg = r.segments[r.segments.length - 1];
+      if (!r.paused && r.recorder.state === 'recording' && document.visibilityState === 'visible' &&
+          !r.hiddenAt && Date.now() - seg.lastDataAt > 15000) {
+        mark();
+        r.brokenAt = seg.lastDataAt;
+        this._endSegment();
+        this.heal();
+        return;
+      }
+      if (!r.paused && !this._healthy()) {
         mark();
         if (document.visibilityState === 'visible') this.heal();
       }
@@ -309,7 +324,7 @@ window.gdcRecorder = {
     const track = r.mic.getAudioTracks()[0];
     const micOk = track && track.readyState === 'live' && !track.muted;
     const ctxOk = !r.ctx || !r.mono || r.ctx.state === 'running';
-    const recOk = r.recorder.state !== 'inactive';
+    const recOk = r.paused || r.recorder.state !== 'inactive';
     return micOk && ctxOk && recOk;
   },
 
@@ -338,18 +353,17 @@ window.gdcRecorder = {
             r.mic.getTracks().forEach((t) => t.stop());
             r.mic = mic;
             r.stream = mic;
-            if (r.recorder.state !== 'inactive') r.recorder.stop();
+            this._endSegment();
           }
           this._watchMic(() => {
-            if (rec === r && !r.broken) {
+            if (rec === r && !r.broken && !r.paused) {
               r.broken = true;
               r.cuts++;
               r.brokenAt = Date.now();
             }
           });
         }
-        if (r.recorder.state === 'inactive') this._newSegment();
-        if (r.paused && r.recorder.state === 'recording') r.recorder.pause();
+        if (!r.paused && r.recorder.state === 'inactive') this._newSegment();
         const ok = this._healthy();
         if (ok && r.broken) {
           r.broken = false;
@@ -358,10 +372,8 @@ window.gdcRecorder = {
         return ok;
       } catch (e) {
         return false;
-      } finally {
-        r.healing = null;
       }
-    })();
+    })().finally(() => (r.healing = null)); // après l'affectation, même si rien n'a été attendu
     return r.healing;
   },
 
@@ -384,20 +396,29 @@ window.gdcRecorder = {
     return peak / 128;
   },
 
+  // Ferme le fichier en cours (ses dernières secondes arrivent par ondataavailable).
+  _endSegment() {
+    const r = rec;
+    r.segments[r.segments.length - 1].endedAt ||= Date.now();
+    if (r.recorder.state !== 'inactive') r.recorder.stop();
+  },
+
   pause() {
-    if (!rec) return;
+    if (!rec || rec.paused) return;
     rec.paused = true;
-    rec.pausedAt = Date.now();
-    if (rec.recorder.state === 'recording') rec.recorder.pause();
+    // Le temps de pause ne compte pas comme du son perdu.
+    if (rec.broken) {
+      rec.lostMs += Date.now() - (rec.brokenAt || Date.now());
+      rec.brokenAt = Date.now();
+    }
+    this._endSegment();
   },
 
   resume() {
-    if (!rec) return;
+    if (!rec || !rec.paused) return;
     rec.paused = false;
-    const seg = rec.segments[rec.segments.length - 1];
-    if (rec.pausedAt) seg.pausedMs += Date.now() - rec.pausedAt;
-    rec.pausedAt = null;
-    if (rec.recorder.state === 'paused') rec.recorder.resume();
+    if (rec.broken) rec.brokenAt = Date.now();
+    this.heal();
   },
 
   sessionId() {
@@ -409,7 +430,7 @@ window.gdcRecorder = {
     return rec;
   },
 
-  // Arrête et renvoie les fichiers : [{ bytes, startedAt, seconds }] (un seul en temps normal).
+  // Arrête et renvoie les fichiers : [{ bytes, startedAt, seconds }] (un par reprise ou coupure).
   async stop() {
     if (!rec) return [];
     const r = rec;
@@ -420,6 +441,8 @@ window.gdcRecorder = {
       await new Promise((resolve) => {
         r.recorder.addEventListener('stop', resolve, { once: true });
         r.recorder.stop();
+        // Un enregistreur bloqué peut ne jamais répondre : on n'attend pas plus de 3 s.
+        setTimeout(resolve, 3000);
       });
     }
     await r.writes;
@@ -435,7 +458,7 @@ window.gdcRecorder = {
       out.push({
         bytes: new Uint8Array(await blob.arrayBuffer()),
         startedAt: seg.startedAt,
-        seconds: Math.max(1, Math.round((end - seg.startedAt - seg.pausedMs) / 1000)),
+        seconds: Math.max(1, Math.round((end - seg.startedAt) / 1000)),
       });
     }
     return out;
