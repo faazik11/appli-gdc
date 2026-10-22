@@ -6,6 +6,7 @@ import '../models.dart';
 import '../platform/pick_file.dart';
 import '../services/errors.dart';
 import '../services/repository.dart';
+import '../services/workshop.dart';
 
 /// Ajout ou modification d'un chant (réservé aux chefs de chœur et admins).
 class SongFormScreen extends StatefulWidget {
@@ -47,7 +48,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
       }
       if (_audio != null) {
         audioPath = await _repo.upload(Repository.audioBucket, _audio!.name,
-            await _audio!.readAsBytes(), audioContentType(_audio!.extension));
+            await _audio!.readAsBytes(), audioTypeOf(_audio!.name));
       }
       await _repo.saveSong(
         id: old?.id,
@@ -185,8 +186,19 @@ class _SongFormScreenState extends State<SongFormScreen> {
               pickedName: _audio?.name,
               hasExisting: _keepAudio,
               onPick: () async {
-                final f = await pickOneFile(type: FileType.audio);
-                if (f != null) setState(() => _audio = f);
+                // Sans filtre « audio/* » : selon le téléphone, il grise ou cache des fichiers audio.
+                final f = await pickOneFile();
+                if (f == null) return;
+                final dot = f.name.lastIndexOf('.');
+                final type = dot < 0 ? null : audioTypes[f.name.substring(dot + 1).toLowerCase()];
+                if (type == null || type == 'audio/webm') {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Format non reconnu. Choisis un fichier audio (mp3, m4a, wav, aac, ogg ou flac).')));
+                  }
+                  return;
+                }
+                setState(() => _audio = f);
               },
               onClear: () => setState(() {
                 _audio = null;
