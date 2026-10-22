@@ -33,7 +33,7 @@ void main() {
     expect(audioExtensionOf('audio/webm;codecs=opus'), 'webm');
   });
 
-  test('repères : lus triés, gardés hors connexion, répartis entre les fichiers coupés', () {
+  test('repères : lus triés, gardés hors connexion', () {
     final r = Recording.fromMap({
       'id': 'r3',
       'recorded_at': '2026-10-15T18:00:00Z',
@@ -51,13 +51,16 @@ void main() {
         key: 'k', recordedAt: _date, mimeType: 'audio/mp4', durationSeconds: 60,
         markers: const [RecordingMarker(seconds: 5, label: 'Ave')]);
     expect(PendingRecording.fromMap(pending.toMap()).markers.single.label, 'Ave');
+  });
 
-    final split = markersForParts(
-      const [RecordingMarker(seconds: 10, label: 'A'), RecordingMarker(seconds: 700, label: 'B')],
-      [600, 400],
-    );
-    expect(split[0].map((m) => (m.seconds, m.label)), [(10, 'A')]);
-    expect(split[1].map((m) => (m.seconds, m.label)), [(100, 'B')]);
+  test('après une pause, les fichiers suivants restent dans le même enregistrement', () {
+    final pending = PendingRecording(
+        key: 'k0', recordedAt: _date, mimeType: 'audio/mp4', durationSeconds: 4000,
+        extraFiles: const [RecordingPart(path: 'k1', seconds: 2300)]);
+    final back = PendingRecording.fromMap(pending.toMap());
+    expect(back.extraFiles.map((p) => (p.path, p.seconds)), [('k1', 2300)]);
+    // Ancien format gardé sur un téléphone : pas de suite.
+    expect(PendingRecording.fromMap({...pending.toMap()}..remove('extraFiles')).extraFiles, isEmpty);
   });
 
   test('repères : recherche de chant sans tenir compte des accents ni des majuscules', () {

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models.dart';
+import '../platform/device_files.dart';
 import '../platform/recorder.dart';
 import '../services/agenda.dart';
 import '../services/workshop.dart';
@@ -364,7 +365,8 @@ class _RecorderScreenState extends State<RecorderScreen> {
   }
 }
 
-/// Garde sur le téléphone les fichiers d'un enregistrement (plusieurs s'il a été coupé).
+/// Garde sur le téléphone les fichiers d'un enregistrement (plusieurs après une pause ou une coupure),
+/// qui seront lus à la suite comme un seul enregistrement.
 Future<List<PendingRecording>> keepRecordedParts(
   List<RecordedPart> parts, {
   required String mime,
@@ -373,25 +375,25 @@ Future<List<PendingRecording>> keepRecordedParts(
   int? durationSeconds,
   List<RecordingMarker> markers = const [],
 }) async {
-  final kept = <PendingRecording>[];
-  final split = parts.length == 1
-      ? [markers]
-      : markersForParts(markers, [for (final p in parts) p.seconds]);
-  for (final (i, part) in parts.indexed) {
-    if (part.bytes.isEmpty) continue;
-    kept.add(await PendingRecordings.keep(
-      part.bytes,
+  final files = parts.where((p) => p.bytes.isNotEmpty).toList();
+  if (files.isEmpty) return [];
+  final keys = [for (final (i, p) in files.indexed) 'enregistrement-${p.startedAt.millisecondsSinceEpoch}-$i'];
+  for (final (i, p) in files.indexed.skip(1)) {
+    await devicePut(keys[i], p.bytes);
+  }
+  return [
+    await PendingRecordings.keep(
+      files.first.bytes,
       PendingRecording(
-        key: 'enregistrement-${part.startedAt.millisecondsSinceEpoch}-$i',
-        recordedAt: parts.first.startedAt,
+        key: keys.first,
+        recordedAt: files.first.startedAt,
         eventId: eventId,
-        title: parts.length > 1 ? '${recordingTitle(parts.first.startedAt, null)} · partie ${i + 1}' : null,
         notes: notes,
         mimeType: mime,
-        durationSeconds: parts.length == 1 && durationSeconds != null ? durationSeconds : part.seconds,
-        markers: split[i],
+        durationSeconds: durationSeconds ?? files.fold(0, (sum, p) => sum + p.seconds),
+        markers: markers,
+        extraFiles: [for (final (i, p) in files.indexed.skip(1)) RecordingPart(path: keys[i], seconds: p.seconds)],
       ),
-    ));
-  }
-  return kept;
+    ),
+  ];
 }

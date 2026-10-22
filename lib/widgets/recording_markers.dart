@@ -9,22 +9,6 @@ String markerClock(int seconds) {
   return h > 0 ? '$h:${two(m)}:${two(s)}' : '$m:${two(s)}';
 }
 
-/// Répartit les repères d'un enregistrement coupé en plusieurs fichiers :
-/// chaque fichier reçoit les siens, comptés depuis son propre début.
-List<List<RecordingMarker>> markersForParts(List<RecordingMarker> markers, List<int> partSeconds) {
-  final out = <List<RecordingMarker>>[];
-  var start = 0;
-  for (final (i, len) in partSeconds.indexed) {
-    final last = i == partSeconds.length - 1;
-    out.add([
-      for (final m in markers)
-        if (m.seconds >= start && (last || m.seconds < start + len)) m.shift(-start),
-    ]);
-    start += len;
-  }
-  return out;
-}
-
 /// Minuscules sans accents, pour chercher « priere » et trouver « Prière ».
 String plainText(String s) {
   const from = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ';
