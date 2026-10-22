@@ -368,6 +368,7 @@ const audioTypes = {
   'mp4': 'audio/mp4',
   'aac': 'audio/aac',
   'mp3': 'audio/mpeg',
+  'mpeg': 'audio/mpeg',
   'wav': 'audio/wav',
   'ogg': 'audio/ogg',
   'opus': 'audio/ogg',
