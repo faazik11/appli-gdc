@@ -1,5 +1,5 @@
 // Envoi des notifications sur les téléphones (Web Push).
-// Appelé par la base : nouvel événement, nouvelle annonce, tâches, et toutes les heures pour les rappels.
+// Appelé par la base : nouvel événement, nouvelle annonce, nouveau chant (au choix), tâches, et toutes les heures pour les rappels.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
@@ -87,6 +87,23 @@ async function onAnnouncement(id: string) {
   const who = (await members()).filter((m) => m !== a.created_by);
   const body = a.body.length > 180 ? a.body.slice(0, 177) + "…" : a.body;
   return send(who, { title: "Nouvelle annonce", body, tag: `annonce-${a.id}` });
+}
+
+/** Nouveau chant à travailler (seulement si celui qui l'ajoute l'a demandé). */
+async function onSong(id: string) {
+  const { data: c } = await db.from("songs").select("*, categories(name)").eq("id", id).single();
+  if (!c) return 0;
+  const has = [c.lyrics_pdf_path && "les paroles", c.audio_path && "l'audio", c.youtube_url && "la vidéo YouTube"]
+    .filter(Boolean) as string[];
+  const what = has.length === 0 ? "Ouvre l'appli pour le découvrir."
+    : `Regarde ${has.length === 1 ? has[0] : `${has.slice(0, -1).join(", ")} et ${has.at(-1)}`} dans l'appli.`;
+  const who = (await members()).filter((m) => m !== c.created_by);
+  const cat = (c.categories as { name: string } | null)?.name;
+  return send(who, {
+    title: `Nouveau chant à travailler : ${c.title}`,
+    body: `${cat ? `${cat} · ` : ""}${what}`,
+    tag: `chant-${c.id}`,
+  });
 }
 
 const short = (s: string, n = 180) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
@@ -196,6 +213,7 @@ Deno.serve(async (req) => {
   let sent = 0;
   if (p.type === "event") sent = await onEvent(p.id);
   else if (p.type === "announcement") sent = await onAnnouncement(p.id);
+  else if (p.type === "song" && p.id) sent = await onSong(p.id);
   else if (p.type === "task" && p.task_id && p.profile_id) sent = await onTask(p.task_id, p.profile_id);
   else if (p.type === "task_status" && p.task_id && p.profile_id) sent = await onTaskStatus(p.task_id, p.profile_id);
   else if (p.type === "task_message" && p.id) sent = await onTaskMessage(p.id);

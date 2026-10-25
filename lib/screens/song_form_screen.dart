@@ -34,6 +34,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
   late bool _keepPdf = widget.song?.lyricsPdfPath != null;
   late bool _keepAudio = widget.song?.audioPath != null;
   bool _saving = false;
+  bool _notify = false;
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -59,6 +60,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
         tags: _tags.text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList(),
         lyricsPdfPath: pdfPath,
         audioPath: audioPath,
+        notifyMembers: old == null && _notify,
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -205,6 +207,17 @@ class _SongFormScreenState extends State<SongFormScreen> {
                 _keepAudio = false;
               }),
             ),
+            if (widget.song == null) ...[
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: const Icon(Icons.notifications_active_rounded),
+                title: const Text('Prévenir les membres'),
+                subtitle: const Text('Une notification pour qu\'ils commencent à travailler ce chant'),
+                value: _notify,
+                onChanged: (v) => setState(() => _notify = v),
+              ),
+            ],
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: _saving ? null : _save,
