@@ -71,6 +71,7 @@ class Repository {
     List<String> tags = const [],
     String? lyricsPdfPath,
     String? audioPath,
+    bool notifyMembers = false,
   }) async {
     final data = {
       'title': title,
@@ -82,7 +83,11 @@ class Repository {
       'audio_path': audioPath,
     };
     if (id == null) {
-      await _db.from('songs').insert(data);
+      final row = await _db.from('songs').insert(data).select('id').single();
+      // Seulement à l'ajout, et si on l'a choisi : jamais lors d'une modification.
+      if (notifyMembers) {
+        await _db.rpc('notify_new_song', params: {'p_song_id': row['id']});
+      }
     } else {
       await _db.from('songs').update(data).eq('id', id);
     }
