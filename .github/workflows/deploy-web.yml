@@ -3,6 +3,8 @@ name: Mise en ligne de la version web
 on:
   push:
     branches: [main]
+  # Sur une demande de fusion : on vérifie seulement que l'appli se construit (pas de mise en ligne)
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -11,7 +13,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
   cancel-in-progress: true
 
 jobs:
@@ -28,11 +30,13 @@ jobs:
       - run: flutter build web --release --no-web-resources-cdn --base-href "/${{ github.event.repository.name }}/"
       # Les adresses inconnues renvoient vers l'appli
       - run: cp build/web/index.html build/web/404.html
-      - uses: actions/upload-pages-artifact@v3
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment:
