@@ -558,3 +558,106 @@ window.gdcPush = {
     return JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
   },
 };
+
+// ---------- Vidéos des prestations ----------
+// Le fichier choisi reste sur le téléphone et part directement chez Cloudflare (sans être chargé
+// en mémoire : une vidéo pèse vite plusieurs centaines de Mo).
+const videoFiles = new Map();
+let nextVideo = 0;
+
+window.gdcVideo = {
+  // Ouvre le sélecteur ; renvoie un numéro de fichier, ou -1 si rien n'est choisi.
+  pick() {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'video/*';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      const done = (id) => {
+        input.remove();
+        resolve(id);
+      };
+      input.addEventListener('change', () => {
+        const f = input.files && input.files[0];
+        if (!f) return done(-1);
+        const id = ++nextVideo;
+        videoFiles.set(id, f);
+        done(id);
+      });
+      input.addEventListener('cancel', () => done(-1));
+      input.click();
+    });
+  },
+
+  name(id) {
+    return videoFiles.get(id)?.name ?? '';
+  },
+  size(id) {
+    return videoFiles.get(id)?.size ?? 0;
+  },
+  type(id) {
+    return videoFiles.get(id)?.type ?? '';
+  },
+
+  // Durée en secondes (0 si le navigateur ne la donne pas).
+  duration(id) {
+    const f = videoFiles.get(id);
+    if (!f) return Promise.resolve(0);
+    return new Promise((resolve) => {
+      const v = document.createElement('video');
+      const src = URL.createObjectURL(f);
+      const end = (s) => {
+        URL.revokeObjectURL(src);
+        resolve(Number.isFinite(s) ? Math.round(s) : 0);
+      };
+      const timer = setTimeout(() => end(0), 8000);
+      v.preload = 'metadata';
+      v.muted = true;
+      v.onloadedmetadata = () => {
+        clearTimeout(timer);
+        end(v.duration);
+      };
+      v.onerror = () => {
+        clearTimeout(timer);
+        end(0);
+      };
+      v.src = src;
+    });
+  },
+
+  // Envoie le fichier au lien signé ; progress(fraction) pendant l'envoi. Renvoie le code HTTP (0 = coupure).
+  upload(id, url, type, progress) {
+    const f = videoFiles.get(id);
+    return new Promise((resolve) => {
+      if (!f) return resolve(0);
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url);
+      xhr.setRequestHeader('Content-Type', type);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) progress(e.loaded / e.total);
+      };
+      xhr.onload = () => resolve(xhr.status);
+      xhr.onerror = () => resolve(0);
+      xhr.onabort = () => resolve(0);
+      xhr.send(f);
+    });
+  },
+
+  forget(id) {
+    videoFiles.delete(id);
+  },
+
+  // Lecteur du navigateur (plein écran, AirPlay… fournis par le téléphone).
+  player(url) {
+    const v = document.createElement('video');
+    v.src = url;
+    v.controls = true;
+    v.playsInline = true;
+    v.preload = 'metadata';
+    v.style.width = '100%';
+    v.style.height = '100%';
+    v.style.background = '#000';
+    return v;
+  },
+};

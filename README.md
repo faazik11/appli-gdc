@@ -6,8 +6,9 @@ Application du Groupe de Chant Narbonne (GDC) :
   avec sommaire et parties ; mode concert (pages préparées d'avance, note du chant en cours).
 - **Agenda** : répétitions et prestations, réponses de présence, appel, historique des prestations,
   matériel à emporter et tenue du jour.
-- **Répètes** : diapason, métronome, enregistrement des répétitions (avec repères par chant),
-  import de fichiers audio.
+- **Enregistrements** : diapason, métronome, enregistrement des répétitions (avec repères par chant),
+  import de fichiers audio ; vidéos des prestations (envoyées directement chez Cloudflare R2,
+  10 Go gratuits, fiches dans la table `videos`).
 - **Inventaire** : matériel du local, tenues et vêtements, avec photos.
 - **Annonces, tâches et notifications** sur le téléphone.
 - **Membres** : rôles, sauvegarde complète et jauge de stockage (admins).

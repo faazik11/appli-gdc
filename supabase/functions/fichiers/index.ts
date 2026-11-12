@@ -1,4 +1,4 @@
-// Fichiers des enregistrements de répète, rangés chez Cloudflare R2 (10 Go gratuits).
+// Fichiers des enregistrements de répète et des vidéos de prestation (dossier videos/), rangés chez Cloudflare R2 (10 Go gratuits).
 // L'appli ne voit jamais les clés R2 : cette fonction vérifie le compte puis donne un lien signé
 // valable 1 h pour lire ou déposer un fichier directement chez R2.
 // Les clés sont dans la table app_secrets (r2_endpoint, r2_access_key_id, r2_secret_access_key, r2_bucket).
@@ -7,6 +7,7 @@ import { AwsClient } from "npm:aws4fetch@1.0.20";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const SUPABASE_BUCKET = "enregistrements";
+const LIMIT = 10 * 1024 ** 3;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -63,6 +64,26 @@ Deno.serve(async (req) => {
       });
       return r.url;
     };
+    const list = async () => {
+      const files: { path: string; size: number }[] = [];
+      let token: string | null = null;
+      do {
+        const url = new URL(base);
+        url.searchParams.set("list-type", "2");
+        if (token) url.searchParams.set("continuation-token", token);
+        const xml = await (await r2.fetch(url.toString())).text();
+        for (const m of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
+          const key = m[1].match(/<Key>([\s\S]*?)<\/Key>/)?.[1] ?? "";
+          const size = Number(m[1].match(/<Size>(\d+)<\/Size>/)?.[1] ?? 0);
+          files.push({ path: key.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'"), size });
+        }
+        token = /<IsTruncated>true<\/IsTruncated>/.test(xml)
+          ? xml.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/)?.[1] ?? null
+          : null;
+      } while (token);
+      return files;
+    };
+    const usedBytes = async () => (await list()).reduce((n, f) => n + f.size, 0);
     const { editor, admin } = rights;
 
     switch (action) {
@@ -70,11 +91,22 @@ Deno.serve(async (req) => {
       case "lire":
         return json({ url: await signed(cleanPath(body.path), "GET") });
 
-      // Lien de dépôt (éditeurs).
+      // Lien de dépôt (éditeurs). Une vidéo n'est acceptée que s'il reste la place (10 Go gratuits).
       case "deposer": {
         if (!editor) return json({ error: "Ton rôle ne permet pas de faire ça." }, 403);
+        const path = cleanPath(body.path);
+        const size = Number(body.size ?? 0);
+        if (path.startsWith("videos/") && (await usedBytes()) + size > LIMIT) {
+          return json({ error: "Plus assez de place chez Cloudflare (10 Go gratuits). Supprime d'anciennes vidéos ou compresse celle-ci." }, 413);
+        }
         const type = String(body.type || "application/octet-stream");
-        return json({ url: await signed(cleanPath(body.path), "PUT", type) });
+        return json({ url: await signed(path, "PUT", type) });
+      }
+
+      // Place occupée chez R2 (éditeurs : affichée avant d'envoyer une vidéo).
+      case "place": {
+        if (!editor) return json({ error: "Ton rôle ne permet pas de faire ça." }, 403);
+        return json({ used: await usedBytes(), limit: LIMIT });
       }
 
       // Le fichier existe-t-il déjà ? (restauration d'une sauvegarde)
@@ -95,23 +127,7 @@ Deno.serve(async (req) => {
       // Liste des fichiers avec leur taille (admins : jauge et sauvegarde).
       case "liste": {
         if (!admin) return json({ error: "Réservé aux admins" }, 403);
-        const files: { path: string; size: number }[] = [];
-        let token: string | null = null;
-        do {
-          const url = new URL(base);
-          url.searchParams.set("list-type", "2");
-          if (token) url.searchParams.set("continuation-token", token);
-          const xml = await (await r2.fetch(url.toString())).text();
-          for (const m of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
-            const key = m[1].match(/<Key>([\s\S]*?)<\/Key>/)?.[1] ?? "";
-            const size = Number(m[1].match(/<Size>(\d+)<\/Size>/)?.[1] ?? 0);
-            files.push({ path: key.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'"), size });
-          }
-          token = /<IsTruncated>true<\/IsTruncated>/.test(xml)
-            ? xml.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/)?.[1] ?? null
-            : null;
-        } while (token);
-        return json({ files });
+        return json({ files: await list() });
       }
 
       // Copie chez R2 d'un fichier encore chez Supabase (déménagement, un fichier par appel).

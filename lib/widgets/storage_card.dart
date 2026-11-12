@@ -111,7 +111,7 @@ class _StorageCardState extends State<StorageCard> {
                   return Padding(
                     padding: const EdgeInsets.only(top: 20),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      _gauge(theme, 'Cloudflare R2 · enregistrements et notes', bytes, StorageCard.r2LimitBytes),
+                      _gauge(theme, 'Cloudflare R2 · enregistrements, notes et vidéos', bytes, StorageCard.r2LimitBytes),
                       if (bytes >= StorageCard.r2LimitBytes * 0.7) ...[
                         const SizedBox(height: 10),
                         Text('Au-delà de 10 Go, Cloudflare facture environ 0,015 \$ par Go et par mois.', style: note),

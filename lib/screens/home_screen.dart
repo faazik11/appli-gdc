@@ -26,11 +26,11 @@ import '../widgets/ui.dart';
 import 'agenda_screen.dart';
 import 'booklet_editor_screen.dart';
 import 'concert_screen.dart';
+import 'media_screen.dart';
 import 'members_screen.dart';
 import 'new_password_screen.dart';
 import 'inventory_screen.dart';
 import 'pdf_view_screen.dart';
-import 'recordings_screen.dart';
 import 'song_form_screen.dart';
 import 'song_screen.dart';
 
@@ -311,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _Tab.songs => _songsTab(),
                 _Tab.agenda => AgendaPanel(profile: widget.profile, backend: _agenda, links: _links, work: _work),
                 _Tab.booklets => _bookletsTab(wide),
-                _Tab.recordings => RecordingsScreen(backend: _work, agenda: _agenda, canEdit: _canEdit),
+                _Tab.recordings => MediaScreen(backend: _work, agenda: _agenda, canEdit: _canEdit),
                 _Tab.inventory => InventoryScreen(backend: _work, canEdit: _canEdit),
                 _Tab.members => widget.membersPanel ?? const MembersPanel(),
               };
@@ -323,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _Tab.songs => (Icons.library_music_outlined, Icons.library_music_rounded, 'Chants'),
           _Tab.agenda => (Icons.event_outlined, Icons.event_rounded, 'Agenda'),
           _Tab.booklets => (Icons.menu_book_outlined, Icons.menu_book_rounded, 'Livrets'), // dans l'onglet Chants
-          _Tab.recordings => (Icons.mic_none_rounded, Icons.mic_rounded, 'Répètes'),
+          _Tab.recordings => (Icons.video_library_outlined, Icons.video_library_rounded, wide ? 'Enregistrements' : 'Enreg.'),
           _Tab.inventory => (Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'Inventaire'),
           _Tab.members => (Icons.groups_outlined, Icons.groups_rounded, 'Membres'),
         },
