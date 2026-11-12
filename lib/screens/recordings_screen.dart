@@ -49,7 +49,7 @@ String formatDuration(int? seconds) {
   return '$s s';
 }
 
-/// Page « Répétitions » : tous les enregistrements, du plus récent au plus ancien.
+/// Page « Répétitions » (onglet Enregistrements) : tous les enregistrements, du plus récent au plus ancien.
 class RecordingsScreen extends StatefulWidget {
   final WorkBackend backend;
   final AgendaBackend agenda;
@@ -196,6 +196,12 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
       child: Wrap(spacing: 8, runSpacing: 8, children: [
         chip(Icons.tune_rounded, 'Diapason', 0),
         chip(Icons.timer_outlined, 'Métronome', 1),
+        if (widget.canEdit)
+          ActionChip(
+            avatar: Icon(Icons.upload_file_rounded, size: 18, color: tint),
+            label: const Text('Importer un audio'),
+            onPressed: _import,
+          ),
       ]),
     );
   }
@@ -210,17 +216,6 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
       groups.putIfAbsent(_cap(DateFormat('MMMM y', 'fr_FR').format(r.recordedAt)), () => []).add(r);
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Répétitions'), actions: [
-        if (widget.canEdit)
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton.icon(
-              icon: const Icon(Icons.upload_file_rounded),
-              label: const Text('Importer'),
-              onPressed: _import,
-            ),
-          ),
-      ]),
       floatingActionButton: widget.canEdit
           ? FloatingActionButton.extended(
               backgroundColor: const Color(0xFFC62828),

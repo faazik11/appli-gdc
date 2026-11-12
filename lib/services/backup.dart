@@ -44,8 +44,10 @@ class Backup {
         data['files'] = [
           for (final f in (data['files'] as List? ?? const []))
             if (!Repository.r2Buckets.contains((f as Map)['bucket'])) f,
+          // Les vidéos (plusieurs Go) restent chez Cloudflare : seules leurs fiches sont sauvegardées.
           for (final f in r2)
-            {'bucket': Repository.notesBucket, 'path': (f as Map)['path'], 'type': null, 'size': '${f['size']}'},
+            if (!((f as Map)['path'] as String).startsWith('videos/'))
+              {'bucket': Repository.notesBucket, 'path': f['path'], 'type': null, 'size': '${f['size']}'},
         ];
         return data;
       },
