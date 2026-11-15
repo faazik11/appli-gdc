@@ -75,6 +75,9 @@ abstract class WorkBackend {
   /// Retire une suite (index dans [Recording.extraParts]) et son fichier.
   Future<Recording> removeRecordingPart(Recording r, int index);
 
+  /// Échange la partie [index] (dans [Recording.parts]) avec celle d'avant ; les repères suivent leur partie.
+  Future<Recording> movePartUp(Recording r, int index);
+
   /// Dépose un fichier et renvoie son chemin.
   Future<String> upload(String bucket, String fileName, Uint8List bytes, String contentType);
   Future<void> deleteFile(String bucket, String path);
@@ -332,6 +335,45 @@ class SupabaseWork implements WorkBackend {
     final updated = await _setParts(r, extra, total);
     await _repo.deleteFiles(WorkBackend.recordingsBucket, [part.path]);
     return updated;
+  }
+
+  @override
+  Future<Recording> movePartUp(Recording r, int index) async {
+    final parts = r.parts;
+    final order = [for (var i = 0; i < parts.length; i++) i];
+    order[index] = index - 1;
+    order[index - 1] = index;
+    final moved = [for (final i in order) parts[i]];
+    // Les repères ne suivent que si toutes les durées sont connues.
+    List<RecordingMarker>? markers;
+    if (parts.every((p) => p.seconds != null)) {
+      final oldStart = <int>[], newStart = List<int>.filled(parts.length, 0);
+      var t = 0;
+      for (final p in parts) {
+        oldStart.add(t);
+        t += p.seconds!;
+      }
+      t = 0;
+      for (final i in order) {
+        newStart[i] = t;
+        t += parts[i].seconds!;
+      }
+      int partOf(int s) => oldStart.lastIndexWhere((start) => start <= s).clamp(0, parts.length - 1);
+      markers = [
+        for (final m in r.markers) m.shift(newStart[partOf(m.seconds)] - oldStart[partOf(m.seconds)]),
+      ];
+    }
+    final row = await _db
+        .from('recordings')
+        .update({
+          'audio_path': moved.first.path,
+          'extra_parts': [for (final p in moved.skip(1)) p.toMap()],
+          if (markers != null) 'markers': [for (final m in markers) m.toMap()],
+        })
+        .eq('id', r.id)
+        .select()
+        .single();
+    return Recording.fromMap(row);
   }
 
   @override

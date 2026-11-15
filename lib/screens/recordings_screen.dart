@@ -585,11 +585,18 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
                       title: Text('Partie ${i + 1}${i == 0 ? '' : ' · à la suite'}'),
                       subtitle: p.seconds == null ? null : Text(formatDuration(p.seconds)),
                       trailing: widget.canEdit && i > 0 && !_adding
-                          ? IconButton(
-                              tooltip: 'Retirer cette partie',
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: () => _removePart(i - 1),
-                            )
+                          ? Row(mainAxisSize: MainAxisSize.min, children: [
+                              IconButton(
+                                tooltip: 'Mettre avant la partie $i',
+                                icon: const Icon(Icons.arrow_upward_rounded),
+                                onPressed: () => _run(() => widget.backend.movePartUp(_rec, i), 'Partie ${i + 1} mise en $i.'),
+                              ),
+                              IconButton(
+                                tooltip: 'Retirer cette partie',
+                                icon: const Icon(Icons.close_rounded),
+                                onPressed: () => _removePart(i - 1),
+                              ),
+                            ])
                           : null,
                     ),
                 if (widget.canEdit) ...[
