@@ -316,7 +316,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
                                   ],
                                 ]),
                               ),
-                              const Icon(Icons.play_circle_rounded, size: 34, color: AppColors.aubergineLight),
+                              const Icon(Icons.play_circle_rounded, size: 34, color: AppColors.anthraciteLight),
                             ]),
                           ),
                         ),

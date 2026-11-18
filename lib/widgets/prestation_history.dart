@@ -70,8 +70,8 @@ class PrestationHistory extends StatelessWidget {
                   dense: true,
                   leading: CircleAvatar(
                     radius: 14,
-                    backgroundColor: i == 0 ? AppColors.gold : AppColors.aubergine.withValues(alpha: 0.1),
-                    foregroundColor: AppColors.aubergine,
+                    backgroundColor: i == 0 ? AppColors.gold : AppColors.anthracite.withValues(alpha: 0.1),
+                    foregroundColor: AppColors.anthracite,
                     child: Text('${i + 1}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                   ),
                   title: Text(links!.song(entry.key)!.title, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -161,7 +161,7 @@ class _PrestationCard extends StatelessWidget {
                   Wrap(spacing: 6, runSpacing: 6, children: [
                     for (final s in songs)
                       Material(
-                        color: AppColors.aubergine.withValues(alpha: 0.07),
+                        color: AppColors.anthracite.withValues(alpha: 0.07),
                         borderRadius: BorderRadius.circular(20),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(20),
@@ -170,9 +170,9 @@ class _PrestationCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             child: Row(mainAxisSize: MainAxisSize.min, children: [
                               Icon(CategoryStyle.of(links!.categoryOf(s)?.name ?? '').icon,
-                                  size: 14, color: AppColors.aubergine),
+                                  size: 14, color: AppColors.anthracite),
                               const SizedBox(width: 5),
-                              Text(s.title, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.aubergine)),
+                              Text(s.title, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.anthracite)),
                             ]),
                           ),
                         ),

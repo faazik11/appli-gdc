@@ -238,7 +238,7 @@ class _RecorderScreenState extends State<RecorderScreen> {
         if (stop == true) _stop();
       },
       child: Scaffold(
-        backgroundColor: AppColors.aubergine,
+        backgroundColor: AppColors.anthracite,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,

@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 
-/// Identité visuelle de l'Appli GDC : aubergine profond, or, fond ivoire.
+/// Identité visuelle de l'Appli GDC : anthracite (choisi par Rayan le 18/11/2026 à la place de l'aubergine), or, fond ivoire.
 class AppColors {
-  static const aubergine = Color(0xFF2E1A47);
-  static const aubergineLight = Color(0xFF4B2E6F);
+  static const anthracite = Color(0xFF1F2328);
+  static const anthraciteLight = Color(0xFF3A4049);
   static const gold = Color(0xFFC9A227);
   static const goldLight = Color(0xFFE8CF7A);
   static const ivory = Color(0xFFF7F3EE);
-  static const night = Color(0xFF15111C);
-  static const nightSurface = Color(0xFF211B2C);
+  static const night = Color(0xFF121417);
+  static const nightSurface = Color(0xFF1C1F24);
 
   /// Vert foncé choisi par Rayan pour les Chants Arabe ; les autres catégories ont un ton aussi foncé.
   static const categoryGreen = Color(0xFF06402B);
 
   /// Fond des bandeaux : couleur unie (Rayan préfère sans dégradé).
-  static const heroGradient = LinearGradient(colors: [aubergine, aubergine]);
+  static const heroGradient = LinearGradient(colors: [anthracite, anthracite]);
 }
 
 const _fallback = ['Amiri'];
@@ -40,18 +40,18 @@ TextTheme _textTheme(TextTheme base, Color body) {
 ThemeData buildTheme(Brightness brightness) {
   final dark = brightness == Brightness.dark;
   final scheme = ColorScheme.fromSeed(
-    seedColor: AppColors.aubergine,
+    seedColor: AppColors.anthracite,
     brightness: brightness,
   ).copyWith(
-    primary: dark ? const Color(0xFFCDB4F0) : AppColors.aubergine,
+    primary: dark ? const Color(0xFFDDE1E6) : AppColors.anthracite,
     onPrimary: dark ? AppColors.night : Colors.white,
     secondary: AppColors.gold,
     onSecondary: AppColors.night,
     tertiary: dark ? AppColors.goldLight : const Color(0xFF7D6310),
     surface: dark ? AppColors.night : AppColors.ivory,
-    surfaceContainerLowest: dark ? const Color(0xFF110D17) : Colors.white,
+    surfaceContainerLowest: dark ? const Color(0xFF0D0F12) : Colors.white,
     surfaceContainerLow: dark ? AppColors.nightSurface : Colors.white,
-    surfaceContainer: dark ? const Color(0xFF292235) : const Color(0xFFF1EBE3),
+    surfaceContainer: dark ? const Color(0xFF272B31) : const Color(0xFFF1EBE3),
   );
   final base = ThemeData(useMaterial3: true, colorScheme: scheme, brightness: brightness);
   final radius = BorderRadius.circular(18);
@@ -125,6 +125,14 @@ ThemeData buildTheme(Brightness brightness) {
         TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w500, color: scheme.onSurface),
       ),
     ),
+    // Onglet choisi en or clair, comme la barre du bas (sinon Material prend une teinte bleutée).
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected) ? AppColors.gold.withValues(alpha: 0.28) : null),
+        foregroundColor: WidgetStatePropertyAll(scheme.onSurface),
+      ),
+    ),
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: scheme.surfaceContainerLow,
       indicatorColor: AppColors.gold.withValues(alpha: 0.28),
@@ -161,8 +169,8 @@ class CategoryStyle {
         'Chants International' => const CategoryStyle(
             Icons.public_rounded, [Color(0xFF6B3A06)], 'Du monde entier'),
         'Livrets' => const CategoryStyle(
-            Icons.menu_book_rounded, [AppColors.aubergine], 'Programmes des prestations'),
+            Icons.menu_book_rounded, [AppColors.anthracite], 'Programmes des prestations'),
         _ => const CategoryStyle(
-            Icons.queue_music_rounded, [AppColors.aubergineLight], 'Chants'),
+            Icons.queue_music_rounded, [AppColors.anthraciteLight], 'Chants'),
       };
 }

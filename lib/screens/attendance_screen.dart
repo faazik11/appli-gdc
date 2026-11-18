@@ -226,7 +226,7 @@ class AttendanceOverview extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
         child: Card(
-          color: AppColors.aubergine,
+          color: AppColors.anthracite,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
             child: Column(children: [

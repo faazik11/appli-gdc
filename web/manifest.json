@@ -3,8 +3,8 @@
     "short_name": "GDC",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#2E1A47",
-    "theme_color": "#2E1A47",
+    "background_color": "#1F2328",
+    "theme_color": "#1F2328",
     "description": "L'appli du Groupe de Chant Narbonne : chants, agenda, livrets.",
     "prefer_related_applications": false,
     "icons": [

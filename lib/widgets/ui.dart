@@ -195,15 +195,13 @@ class BookletRow extends StatelessWidget {
         decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)))),
         child: Row(children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(4), right: Radius.circular(7)),
-            child: Container(
-              width: 34,
-              height: 44,
-              color: AppColors.aubergine,
-              alignment: Alignment.centerLeft,
-              child: Container(width: 4, color: AppColors.gold),
-            ),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+                color: theme.brightness == Brightness.dark ? const Color(0xFF2C3138) : AppColors.anthracite,
+                borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.menu_book_rounded, color: AppColors.goldLight, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -304,7 +302,7 @@ class AppLogo extends StatelessWidget {
           color: AppColors.gold,
           boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 8))],
         ),
-        child: Icon(Icons.music_note_rounded, color: AppColors.aubergine, size: size * 0.55),
+        child: Icon(Icons.music_note_rounded, color: AppColors.anthracite, size: size * 0.55),
       );
 }
 
@@ -320,7 +318,7 @@ class Avatar extends StatelessWidget {
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.gold,
-      foregroundColor: AppColors.aubergine,
+      foregroundColor: AppColors.anthracite,
       child: Text(initials.isEmpty ? '?' : initials,
           style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600, fontSize: radius * 0.75)),
     );

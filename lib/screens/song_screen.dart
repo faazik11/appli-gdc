@@ -313,7 +313,7 @@ class _SongScreenState extends State<SongScreen> {
   }
 
   Widget _focusButton(IconData icon, String tooltip, VoidCallback onPressed) => Material(
-        color: AppColors.aubergine.withValues(alpha: 0.75),
+        color: AppColors.anthracite.withValues(alpha: 0.75),
         shape: const CircleBorder(),
         child: IconButton(
           tooltip: tooltip,

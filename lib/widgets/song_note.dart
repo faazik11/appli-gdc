@@ -25,7 +25,7 @@ Future<void> showSongNote(
       context: context,
       isScrollControlled: true,
       isDismissible: true,
-      backgroundColor: AppColors.aubergine,
+      backgroundColor: AppColors.anthracite,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => _SongNoteSheet(
         songId: songId,
@@ -331,7 +331,7 @@ class _SongNoteSheetState extends State<_SongNoteSheet> {
               ),
               const SizedBox(width: 12),
               FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.gold, foregroundColor: AppColors.aubergine),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.gold, foregroundColor: AppColors.anthracite),
                 onPressed: _save,
                 icon: const Icon(Icons.check_rounded),
                 label: const Text('Valider'),
@@ -452,12 +452,12 @@ class _NoteButtonState extends State<NoteButton> {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: _playing ? AppColors.gold : AppColors.aubergine.withValues(alpha: 0.75),
+        color: _playing ? AppColors.gold : AppColors.anthracite.withValues(alpha: 0.75),
         shape: const CircleBorder(),
         child: IconButton(
           tooltip: _playing ? 'Arrêter la note' : 'Note de départ : ${widget.songTitle}',
           icon: Icon(_playing ? Icons.stop_rounded : Icons.music_note_rounded,
-              color: _playing ? AppColors.aubergine : Colors.white),
+              color: _playing ? AppColors.anthracite : Colors.white),
           onPressed: _toggle,
         ),
       );
