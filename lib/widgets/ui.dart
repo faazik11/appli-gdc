@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../models.dart';
@@ -158,9 +159,14 @@ class SongRow extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(child: Text(song.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyLarge)),
-          if (song.noteAudioPath != null) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(Icons.music_note_rounded, size: 18, color: muted)),
-          if (song.hasYoutube || song.hasAudio)
-            Padding(padding: const EdgeInsets.only(left: 8), child: Icon(Icons.play_circle_outline_rounded, size: 18, color: muted)),
+          if (song.hasYoutube)
+            const Padding(
+                padding: EdgeInsets.only(left: 10),
+                child: Tooltip(message: 'Vidéo YouTube', child: FaIcon(FontAwesomeIcons.youtube, size: 18, color: Color(0xFFFF0000)))),
+          if (song.hasAudio)
+            Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Tooltip(message: 'Audio MP3', child: Icon(Icons.headphones_rounded, size: 19, color: muted))),
         ]),
       ),
     );
