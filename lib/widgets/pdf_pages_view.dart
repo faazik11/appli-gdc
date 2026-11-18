@@ -54,7 +54,7 @@ class PdfPagesViewState extends State<PdfPagesView> {
   final _fallbackKey = GlobalKey<SfPdfViewerState>();
   double _extent = 0;
 
-  /// Bande grise entre deux pages, pour bien voir où chacune s'arrête.
+  /// Espace entre deux pages (couleur du fond de l'appli), pour bien voir où chacune s'arrête.
   static const _gap = 14.0;
 
   @override
@@ -117,7 +117,8 @@ class PdfPagesViewState extends State<PdfPagesView> {
     return LayoutBuilder(builder: (context, box) {
       // Toutes les pages ont la même hauteur : on peut aller directement à n'importe laquelle.
       _extent = box.maxWidth * images.ratio + _gap;
-      final gapColor = Theme.of(context).brightness == Brightness.dark ? const Color(0xFF3A3F45) : const Color(0xFFD5D7DA);
+      // Entre les pages : la couleur de fond de l'appli, les pages ressortent comme des feuilles.
+      final gapColor = Theme.of(context).scaffoldBackgroundColor;
       return ColoredBox(
         color: gapColor,
         child: InteractiveViewer(
