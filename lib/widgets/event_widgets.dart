@@ -73,7 +73,7 @@ class DateBlock extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: rehearsal
             ? AppColors.heroGradient
-            : const LinearGradient(colors: [Color(0xFFE0B341), Color(0xFFB8860B)]),
+            : const LinearGradient(colors: [Color(0xFF8A6A12), Color(0xFF8A6A12)]),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(mainAxisSize: MainAxisSize.min, children: [

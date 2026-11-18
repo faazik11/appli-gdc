@@ -39,7 +39,7 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// Pastille dégradée avec l'icône d'une catégorie.
+/// Pastille de couleur avec l'icône d'une catégorie.
 class CategoryIcon extends StatelessWidget {
   final CategoryStyle style;
   final double size;
@@ -51,9 +51,8 @@ class CategoryIcon extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          gradient: style.gradient,
+          color: style.color,
           borderRadius: BorderRadius.circular(size * 0.3),
-          boxShadow: [BoxShadow(color: style.colors.first.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Icon(style.icon, color: Colors.white, size: size * 0.5),
       );
@@ -128,7 +127,89 @@ class SongCard extends StatelessWidget {
   }
 }
 
-/// Carte de catégorie en dégradé, avec le nombre de chants.
+/// Ligne fine d'un chant : pastille de catégorie, titre, ce qui est disponible.
+class SongRow extends StatelessWidget {
+  final Song song;
+  final Category? category;
+  final VoidCallback onTap;
+
+  const SongRow({super.key, required this.song, required this.category, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)))),
+        child: Row(children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: CategoryStyle.of(category?.name ?? '').color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Text(song.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyLarge)),
+          if (song.noteAudioPath != null) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(Icons.music_note_rounded, size: 18, color: muted)),
+          if (song.hasYoutube || song.hasAudio)
+            Padding(padding: const EdgeInsets.only(left: 8), child: Icon(Icons.play_circle_outline_rounded, size: 18, color: muted)),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Ligne fine d'un livret : petite icône de livre, titre, date ou nombre de chants.
+class BookletRow extends StatelessWidget {
+  final Booklet booklet;
+  final VoidCallback? onTap;
+  final Widget? menu;
+
+  const BookletRow({super.key, required this.booklet, this.onTap, this.menu});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final info = [
+      if (booklet.eventDate != null) DateFormat.yMMMMd('fr_FR').format(booklet.eventDate!),
+      booklet.songCount > 0 ? '${booklet.songCount} chants' : 'PDF importé',
+    ].join(' · ');
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 10, 8, 10),
+        decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)))),
+        child: Row(children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(4), right: Radius.circular(7)),
+            child: Container(
+              width: 34,
+              height: 44,
+              color: AppColors.aubergine,
+              alignment: Alignment.centerLeft,
+              child: Container(width: 4, color: AppColors.gold),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(booklet.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium),
+              Text(info, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ]),
+          ),
+          if (menu != null) IconTheme(data: IconThemeData(color: theme.colorScheme.onSurfaceVariant), child: menu!),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Case de catégorie (couleur unie), avec le nombre de chants.
 class CategoryCard extends StatelessWidget {
   final String name;
   final int count;
@@ -141,102 +222,27 @@ class CategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = CategoryStyle.of(name);
     return Material(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: Ink(
-        decoration: BoxDecoration(gradient: style.gradient),
+        decoration: const BoxDecoration(color: AppColors.categoryGreen),
         child: InkWell(
           onTap: onTap,
-          child: Stack(children: [
-            Positioned(
-              right: -18,
-              bottom: -18,
-              child: Icon(style.icon, size: 110, color: Colors.white.withValues(alpha: 0.12)),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
-                  child: Icon(style.icon, color: Colors.white, size: 22),
-                ),
-                const Spacer(),
-                Text(name,
-                    maxLines: 2,
-                    style: const TextStyle(fontFamily: 'Poppins', color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16, height: 1.2)),
-                const SizedBox(height: 2),
-                Text('$count $countLabel',
-                    style: TextStyle(fontFamily: 'Poppins', color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5)),
-              ]),
-            ),
-          ]),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(style.icon, color: AppColors.goldLight, size: 22),
+              const Spacer(),
+              Text(name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontFamily: 'Poppins', color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15, height: 1.2)),
+              const SizedBox(height: 2),
+              Text('$count $countLabel',
+                  style: TextStyle(fontFamily: 'Poppins', color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5)),
+            ]),
+          ),
         ),
-      ),
-    );
-  }
-}
-
-/// Carte « couverture » d'un livret.
-class BookletCard extends StatelessWidget {
-  final Booklet booklet;
-  final VoidCallback? onTap;
-  final Widget? menu;
-
-  const BookletCard({super.key, required this.booklet, this.onTap, this.menu});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final date = booklet.eventDate == null ? null : DateFormat.yMMMMd('fr_FR').format(booklet.eventDate!);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Container(
-            height: 110,
-            decoration: BoxDecoration(gradient: CategoryStyle.of('Livrets').gradient),
-            child: Stack(children: [
-              Positioned(
-                right: -10,
-                bottom: -16,
-                child: Icon(Icons.menu_book_rounded, size: 96, color: Colors.white.withValues(alpha: 0.13)),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: Text(booklet.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontFamily: 'DMSerifDisplay', fontFamilyFallback: ['Amiri'], color: Colors.white, fontSize: 20, height: 1.15)),
-                ),
-              ),
-              if (menu != null) Positioned(top: 2, right: 2, child: IconTheme(data: const IconThemeData(color: Colors.white), child: menu!)),
-            ]),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-            child: Row(children: [
-              Icon(Icons.event_rounded, size: 16, color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(date ?? 'Sans date',
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
-              ),
-              if (booklet.songCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppColors.gold.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
-                  child: Text('${booklet.songCount} chants',
-                      style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.tertiary, fontWeight: FontWeight.w600)),
-                )
-              else
-                Text('PDF importé', style: theme.textTheme.labelSmall),
-            ]),
-          ),
-        ]),
       ),
     );
   }
@@ -285,7 +291,7 @@ class AppLogo extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: const LinearGradient(colors: [AppColors.goldLight, AppColors.gold]),
+          color: AppColors.gold,
           boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 8))],
         ),
         child: Icon(Icons.music_note_rounded, color: AppColors.aubergine, size: size * 0.55),
