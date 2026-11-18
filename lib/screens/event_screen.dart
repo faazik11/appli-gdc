@@ -113,7 +113,7 @@ class _EventScreenState extends State<EventScreen> {
             pinned: true,
             expandedHeight: 210,
             foregroundColor: Colors.white,
-            backgroundColor: AppColors.aubergine,
+            backgroundColor: AppColors.anthracite,
             actions: [
               if (_canEdit) ...[
                 IconButton(tooltip: 'Modifier', icon: const Icon(Icons.edit_rounded), onPressed: _edit),
@@ -229,7 +229,7 @@ class _EventScreenState extends State<EventScreen> {
       const SizedBox(height: 8),
       if (booklet != null)
         Card(
-          color: AppColors.aubergine,
+          color: AppColors.anthracite,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
             child: Row(children: [
@@ -246,7 +246,7 @@ class _EventScreenState extends State<EventScreen> {
                   child: const Text('Ouvrir'),
                 ),
                 FilledButton.icon(
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.gold, foregroundColor: AppColors.aubergine),
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.gold, foregroundColor: AppColors.anthracite),
                   icon: const Icon(Icons.fullscreen_rounded),
                   label: const Text('Concert'),
                   onPressed: () => links.openConcert(booklet),

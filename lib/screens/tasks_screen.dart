@@ -21,7 +21,7 @@ String statusLabel(TaskStatus s) => switch (s) {
     };
 
 Color statusColor(TaskStatus s) => switch (s) {
-      TaskStatus.aFaire => AppColors.aubergineLight,
+      TaskStatus.aFaire => AppColors.anthraciteLight,
       TaskStatus.fait => _doneColor,
       TaskStatus.impossible => _cantColor,
     };
@@ -575,7 +575,7 @@ class _TaskScreenState extends State<TaskScreen> {
   Widget _bubble(TaskMessage m, ThemeData theme) {
     final mine = m.authorId == _me;
     final canDelete = mine || widget.profile.isManager;
-    final bg = mine ? AppColors.aubergineLight : theme.colorScheme.surfaceContainerHighest;
+    final bg = mine ? AppColors.anthraciteLight : theme.colorScheme.surfaceContainerHighest;
     final fg = mine ? Colors.white : theme.colorScheme.onSurface;
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,

@@ -631,7 +631,7 @@ class _EventOutfitSectionState extends State<EventOutfitSection> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       const SizedBox(height: 16),
       Row(children: [
-        const Icon(outfitIcon, size: 20, color: AppColors.aubergine),
+        const Icon(outfitIcon, size: 20, color: AppColors.anthracite),
         const SizedBox(width: 8),
         Expanded(
           child: Text(outfit == null ? 'Tenue du jour' : 'Tenue du jour : ${outfit.name}',

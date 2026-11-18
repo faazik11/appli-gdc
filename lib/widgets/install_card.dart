@@ -43,7 +43,7 @@ class _InstallCardState extends State<InstallCard> {
                   CircleAvatar(
                     radius: 13,
                     backgroundColor: AppColors.gold,
-                    foregroundColor: AppColors.aubergine,
+                    foregroundColor: AppColors.anthracite,
                     child: Text('${i + 1}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                   ),
                   const SizedBox(width: 12),

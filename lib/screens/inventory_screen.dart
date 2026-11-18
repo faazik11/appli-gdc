@@ -46,8 +46,8 @@ class StoredPhoto extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final placeholder = Container(
-      color: AppColors.aubergine.withValues(alpha: 0.08),
-      child: Center(child: Icon(icon, size: 36, color: AppColors.aubergineLight)),
+      color: AppColors.anthracite.withValues(alpha: 0.08),
+      child: Center(child: Icon(icon, size: 36, color: AppColors.anthraciteLight)),
     );
     if (path == null) return placeholder;
     return FutureBuilder<Uint8List>(
@@ -292,7 +292,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 top: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                  decoration: BoxDecoration(color: AppColors.aubergine, borderRadius: BorderRadius.circular(20)),
+                  decoration: BoxDecoration(color: AppColors.anthracite, borderRadius: BorderRadius.circular(20)),
                   child: Text('× ${item.quantity}',
                       style: const TextStyle(fontFamily: 'Poppins', color: AppColors.goldLight, fontWeight: FontWeight.w600, fontSize: 12.5)),
                 ),
@@ -521,7 +521,7 @@ class _EquipmentFormScreenState extends State<EquipmentFormScreen> {
                 child: AspectRatio(
                   aspectRatio: 4 / 3,
                   child: Material(
-                    color: AppColors.aubergine.withValues(alpha: 0.06),
+                    color: AppColors.anthracite.withValues(alpha: 0.06),
                     child: InkWell(
                       onTap: _pickPhoto,
                       child: Stack(fit: StackFit.expand, children: [

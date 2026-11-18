@@ -147,10 +147,10 @@ class _AgendaPanelState extends State<AgendaPanel> {
                 child: Text('Touche une des 3 options ci-dessous.',
                     style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ),
-              tile(Icons.date_range_rounded, AppColors.aubergine, 'Programme de la semaine',
+              tile(Icons.date_range_rounded, AppColors.anthracite, 'Programme de la semaine',
                   'Les répétitions habituelles, horaires et lieu à ajuster',
                   WeekPlannerScreen(backend: widget.backend, events: data.events)),
-              tile(Icons.music_note_rounded, AppColors.aubergineLight, 'Une répétition',
+              tile(Icons.music_note_rounded, AppColors.anthraciteLight, 'Une répétition',
                   'Une répétition en plus, à la date de ton choix',
                   EventFormScreen(
                       backend: widget.backend, kind: EventKind.repetition, locations: locations, links: widget.links)),

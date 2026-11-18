@@ -103,7 +103,7 @@ class _EventGearSectionState extends State<EventGearSection> {
             minHeight: 5,
             value: packed / gear.length,
             color: packed == gear.length ? const Color(0xFF2E9E6A) : AppColors.gold,
-            backgroundColor: AppColors.aubergine.withValues(alpha: 0.08),
+            backgroundColor: AppColors.anthracite.withValues(alpha: 0.08),
           ),
         ),
       ],

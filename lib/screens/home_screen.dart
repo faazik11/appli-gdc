@@ -343,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context, offline, _) => !offline
             ? const SizedBox.shrink()
             : Material(
-                color: AppColors.aubergine,
+                color: AppColors.anthracite,
                 child: SafeArea(
                   bottom: false,
                   child: Padding(

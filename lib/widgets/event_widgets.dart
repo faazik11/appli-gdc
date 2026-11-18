@@ -26,7 +26,7 @@ String relativeDay(DateTime d) {
   };
 }
 
-Color kindColor(EventKind k) => k == EventKind.repetition ? AppColors.aubergineLight : const Color(0xFFB8860B);
+Color kindColor(EventKind k) => k == EventKind.repetition ? AppColors.anthraciteLight : const Color(0xFFB8860B);
 
 String kindLabel(EventKind k) => k == EventKind.repetition ? 'Répétition' : 'Prestation';
 

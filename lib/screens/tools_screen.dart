@@ -102,7 +102,7 @@ class _TunerState extends State<_Tuner> {
                   Material(
                     color: _playing == i
                         ? AppColors.gold
-                        : (const {1, 3, 6, 8, 10}.contains(i) ? AppColors.aubergine : AppColors.aubergineLight),
+                        : (const {1, 3, 6, 8, 10}.contains(i) ? AppColors.anthracite : AppColors.anthraciteLight),
                     borderRadius: BorderRadius.circular(16),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
@@ -112,7 +112,7 @@ class _TunerState extends State<_Tuner> {
                             style: TextStyle(
                                 fontFamily: 'DMSerifDisplay',
                                 fontSize: 24,
-                                color: _playing == i ? AppColors.aubergine : Colors.white)),
+                                color: _playing == i ? AppColors.anthracite : Colors.white)),
                       ),
                     ),
                   ),
