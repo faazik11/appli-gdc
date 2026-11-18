@@ -2,7 +2,7 @@
 
 Application du Groupe de Chant Narbonne (GDC) :
 
-- **Chants** : paroles en PDF, YouTube, audio, note de départ enregistrée ; livrets PDF générés
+- **Chants** : paroles en PDF (corrigeables dans l'appli : bouton « Modifier le texte », éditeurs), YouTube, audio, note de départ enregistrée ; livrets PDF générés (refaits automatiquement après une correction)
   avec sommaire et parties ; mode concert (pages préparées d'avance, note du chant en cours).
 - **Agenda** : répétitions et prestations, réponses de présence, appel, historique des prestations,
   matériel à emporter et tenue du jour.

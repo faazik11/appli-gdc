@@ -10,6 +10,7 @@ import '../services/repository.dart';
 import '../theme.dart';
 import '../widgets/audio_player_bar.dart';
 import '../widgets/song_note.dart';
+import 'lyrics_edit_screen.dart';
 
 /// Écran de répétition : vidéo YouTube ou audio en haut, paroles en dessous.
 class SongScreen extends StatefulWidget {
@@ -49,6 +50,7 @@ class _SongScreenState extends State<SongScreen> {
   bool _focusRequested = false;
   bool _showControlsInLandscape = false;
   late String? _notePath = widget.song.noteAudioPath;
+  late String? _pdfPath = widget.song.lyricsPdfPath;
 
   Future<String> _sign(String bucket, String path) =>
       (widget.signUrl ?? _repo.signedUrl)(bucket, path);
@@ -157,7 +159,7 @@ class _SongScreenState extends State<SongScreen> {
                   ),
                 if (widget.canEdit)
                   IconButton(
-                    tooltip: 'Modifier',
+                    tooltip: 'Modifier le chant',
                     icon: const Icon(Icons.edit_rounded),
                     onPressed: () {
                       Navigator.pop(context);
@@ -256,7 +258,22 @@ class _SongScreenState extends State<SongScreen> {
                 child: Text('Pas encore de PDF de paroles pour ce chant.', textAlign: TextAlign.center),
               ),
             )
-          : PdfPagesView(bucket: Repository.lyricsBucket, path: widget.song.lyricsPdfPath!),
+          : Stack(children: [
+              Positioned.fill(
+                child: PdfPagesView(key: ValueKey(_pdfPath), bucket: Repository.lyricsBucket, path: _pdfPath!),
+              ),
+              if (widget.canEdit && !focus)
+                Positioned(
+                  right: 12,
+                  bottom: 12,
+                  child: FloatingActionButton.extended(
+                    heroTag: null,
+                    onPressed: _editLyrics,
+                    icon: const Icon(Icons.edit_note_rounded),
+                    label: const Text('Modifier le texte'),
+                  ),
+                ),
+            ]),
     );
 
     // En plein écran, le lecteur reste monté (caché) pour que la musique continue.
@@ -310,6 +327,16 @@ class _SongScreenState extends State<SongScreen> {
         ),
       ]),
     );
+  }
+
+  Future<void> _editLyrics() async {
+    final path = await Navigator.of(context).push<String>(MaterialPageRoute(
+      builder: (_) => LyricsEditScreen(song: widget.song.copyWithPdf(_pdfPath)),
+    ));
+    if (path == null || !mounted) return;
+    setState(() => _pdfPath = path);
+    widget.onChanged?.call();
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Paroles corrigées.')));
   }
 
   Widget _focusButton(IconData icon, String tooltip, VoidCallback onPressed) => Material(

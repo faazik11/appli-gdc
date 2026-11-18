@@ -4,6 +4,7 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../models.dart';
 import '../platform/pick_file.dart';
+import '../services/lyrics_corrections.dart';
 import '../services/errors.dart';
 import '../services/repository.dart';
 import '../services/workshop.dart';
@@ -62,6 +63,8 @@ class _SongFormScreenState extends State<SongFormScreen> {
         audioPath: audioPath,
         notifyMembers: old == null && _notify,
       );
+      // Nouveau PDF déposé à la main : les corrections faites dans l'appli ne s'y appliquent plus.
+      if (old != null && pdfPath != old.lyricsPdfPath) await LyricsCorrections.forget(old.id);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {

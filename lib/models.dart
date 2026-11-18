@@ -101,6 +101,20 @@ class Song {
   });
 
   bool get hasPdf => lyricsPdfPath != null;
+
+  /// Le même chant avec un autre PDF de paroles (après une correction).
+  Song copyWithPdf(String? path) => Song(
+        id: id,
+        title: title,
+        categoryId: categoryId,
+        lyricsPdfPath: path,
+        youtubeUrl: youtubeUrl,
+        audioPath: audioPath,
+        tags: tags,
+        notes: notes,
+        createdAt: createdAt,
+        noteAudioPath: noteAudioPath,
+      );
   bool get hasYoutube => youtubeUrl != null;
   bool get hasAudio => audioPath != null;
 
