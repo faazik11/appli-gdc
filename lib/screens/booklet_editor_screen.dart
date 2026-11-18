@@ -118,14 +118,14 @@ class _BookletEditorScreenState extends State<BookletEditorScreen> {
                 const SizedBox(height: 8),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.event),
+                  leading: const Icon(Icons.event_rounded),
                   title: Text(_date == null
                       ? 'Date de la prestation (facultatif)'
                       : DateFormat.yMMMMd('fr_FR').format(_date!)),
                   onTap: _pickDate,
                   trailing: _date == null
                       ? null
-                      : IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _date = null)),
+                      : IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => setState(() => _date = null)),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -137,7 +137,7 @@ class _BookletEditorScreenState extends State<BookletEditorScreen> {
                 for (var i = 0; i < _parts.length; i++) _partCard(i),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add_rounded),
                   label: const Text('Ajouter une partie'),
                   onPressed: () => setState(() => _parts.add(BookletPart(name: 'Partie ${_parts.length + 1}'))),
                 ),
@@ -146,7 +146,7 @@ class _BookletEditorScreenState extends State<BookletEditorScreen> {
       floatingActionButton: busy
           ? null
           : FloatingActionButton.extended(
-              icon: const Icon(Icons.picture_as_pdf),
+              icon: const Icon(Icons.picture_as_pdf_rounded),
               label: Text('Générer le livret ($_songCount chants)'),
               onPressed: _generate,
             ),
@@ -172,21 +172,21 @@ class _BookletEditorScreenState extends State<BookletEditorScreen> {
               ),
               IconButton(
                 tooltip: 'Monter',
-                icon: const Icon(Icons.arrow_upward),
+                icon: const Icon(Icons.arrow_upward_rounded),
                 onPressed: index == 0
                     ? null
                     : () => setState(() => _parts.insert(index - 1, _parts.removeAt(index))),
               ),
               IconButton(
                 tooltip: 'Descendre',
-                icon: const Icon(Icons.arrow_downward),
+                icon: const Icon(Icons.arrow_downward_rounded),
                 onPressed: index == _parts.length - 1
                     ? null
                     : () => setState(() => _parts.insert(index + 1, _parts.removeAt(index))),
               ),
               IconButton(
                 tooltip: 'Supprimer la partie',
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(Icons.delete_outline_rounded),
                 onPressed: () => setState(() => _parts.removeAt(index)),
               ),
             ]),
@@ -203,17 +203,17 @@ class _BookletEditorScreenState extends State<BookletEditorScreen> {
                   ListTile(
                     key: ValueKey('${part.hashCode}-$j-${part.songIds[j]}'),
                     dense: true,
-                    leading: ReorderableDragStartListener(index: j, child: const Icon(Icons.drag_handle)),
+                    leading: ReorderableDragStartListener(index: j, child: const Icon(Icons.drag_handle_rounded)),
                     title: Text(_songsById[part.songIds[j]]?.title ?? 'Chant supprimé'),
                     trailing: IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
+                      icon: const Icon(Icons.remove_circle_outline_rounded),
                       onPressed: () => setState(() => part.songIds.removeAt(j)),
                     ),
                   ),
               ],
             ),
             TextButton.icon(
-              icon: const Icon(Icons.playlist_add),
+              icon: const Icon(Icons.playlist_add_rounded),
               label: const Text('Ajouter des chants'),
               onPressed: () => _addSongs(part),
             ),
@@ -254,7 +254,7 @@ class _SongPickerDialogState extends State<_SongPickerDialog> {
         height: 500,
         child: Column(children: [
           TextField(
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Rechercher', isDense: true),
+            decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Rechercher', isDense: true),
             onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
           ),
           const SizedBox(height: 8),

@@ -32,6 +32,8 @@ TextTheme _textTheme(TextTheme base, Color body) {
     headlineSmall: serif(t.headlineSmall),
     titleLarge: t.titleLarge?.copyWith(fontWeight: FontWeight.w600),
     titleMedium: t.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    // 12 px minimum pour les petits textes (11 par défaut) : lisible sur téléphone.
+    labelSmall: t.labelSmall?.copyWith(fontSize: 12),
   );
 }
 
@@ -45,7 +47,7 @@ ThemeData buildTheme(Brightness brightness) {
     onPrimary: dark ? AppColors.night : Colors.white,
     secondary: AppColors.gold,
     onSecondary: AppColors.night,
-    tertiary: dark ? AppColors.goldLight : const Color(0xFF8A6D12),
+    tertiary: dark ? AppColors.goldLight : const Color(0xFF7D6310),
     surface: dark ? AppColors.night : AppColors.ivory,
     surfaceContainerLowest: dark ? const Color(0xFF110D17) : Colors.white,
     surfaceContainerLow: dark ? AppColors.nightSurface : Colors.white,

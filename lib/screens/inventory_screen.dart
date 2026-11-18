@@ -41,7 +41,7 @@ class StoredPhoto extends StatelessWidget {
   final BoxFit? fit;
   final IconData icon;
 
-  const StoredPhoto(this.path, {super.key, this.fit, this.icon = Icons.inventory_2_outlined});
+  const StoredPhoto(this.path, {super.key, this.fit, this.icon = Icons.inventory_2_rounded});
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +177,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           if (widget.canEdit)
             IconButton(
               tooltip: 'Gérer les catégories',
-              icon: const Icon(Icons.category_outlined),
+              icon: const Icon(Icons.category_rounded),
               onPressed: _manageCategories,
             ),
         ],
@@ -240,7 +240,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ),
                     if (items.isEmpty)
                       EmptyState(
-                        icon: Icons.inventory_2_outlined,
+                        icon: Icons.inventory_2_rounded,
                         title: _items!.isEmpty ? 'Inventaire vide' : 'Aucun produit',
                         message: _items!.isEmpty
                             ? (widget.canEdit
@@ -249,7 +249,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             : 'Rien ne correspond dans cette catégorie.',
                         action: _items!.isEmpty && widget.canEdit && _categories.isEmpty
                             ? FilledButton.icon(
-                                icon: const Icon(Icons.category_outlined),
+                                icon: const Icon(Icons.category_rounded),
                                 label: const Text('Créer les catégories'),
                                 onPressed: _manageCategories,
                               )
@@ -394,9 +394,9 @@ class EquipmentDetailScreen extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Text(item.name, style: theme.textTheme.headlineSmall),
                 const SizedBox(height: 8),
-                row(Icons.category_outlined, 'Catégorie', categoryName ?? 'Sans catégorie'),
+                row(Icons.category_rounded, 'Catégorie', categoryName ?? 'Sans catégorie'),
                 row(Icons.numbers_rounded, 'Quantité', '${item.quantity}'),
-                row(Icons.sticky_note_2_outlined, 'Remarque', item.notes ?? '—'),
+                row(Icons.sticky_note_2_rounded, 'Remarque', item.notes ?? '—'),
               ]),
             ),
           ]),
@@ -531,7 +531,7 @@ class _EquipmentFormScreenState extends State<EquipmentFormScreen> {
                           StoredPhoto(_photoPath)
                         else
                           Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Icon(Icons.add_a_photo_outlined, size: 40, color: theme.colorScheme.tertiary),
+                            Icon(Icons.add_a_photo_rounded, size: 40, color: theme.colorScheme.tertiary),
                             const SizedBox(height: 8),
                             const Text('Ajouter une photo'),
                           ]),
@@ -583,7 +583,7 @@ class _EquipmentFormScreenState extends State<EquipmentFormScreen> {
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
                   tooltip: 'Nouvelle catégorie',
-                  icon: const Icon(Icons.create_new_folder_outlined),
+                  icon: const Icon(Icons.create_new_folder_rounded),
                   onPressed: _newCategory,
                 ),
               ]),
@@ -703,12 +703,12 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
             child: ListView(shrinkWrap: true, children: [
               for (final c in _items)
                 ListTile(
-                  leading: const Icon(Icons.folder_outlined),
+                  leading: const Icon(Icons.folder_rounded),
                   title: Text(c.name),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                     IconButton(
                       tooltip: 'Renommer',
-                      icon: const Icon(Icons.edit_outlined),
+                      icon: const Icon(Icons.edit_rounded),
                       onPressed: () async {
                         final name = await askText(context, title: 'Renommer la catégorie', initial: c.name);
                         if (name != null) _run(() => widget.backend.renameEquipmentCategory(c.id, name));

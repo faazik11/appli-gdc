@@ -50,7 +50,7 @@ Future<LibraryData> _loadFromSupabase() async {
   return LibraryData(r[0] as List<Category>, r[1] as List<Song>, r[2] as List<Booklet>);
 }
 
-enum _Tab { home, songs, agenda, recordings, booklets, inventory, members }
+enum _Tab { home, songs, agenda, recordings, booklets, inventory }
 
 class HomeScreen extends StatefulWidget {
   final Profile profile;
@@ -124,8 +124,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _Tab.agenda,
         _Tab.recordings,
         _Tab.inventory,
-        if (widget.profile.isAdmin) _Tab.members,
       ];
+  // Membres (admins) : dans le menu du compte, pour garder 5 onglets au plus.
 
   // ---------- Navigation vers les autres écrans ----------
 
@@ -296,7 +296,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= 900;
+    final size = MediaQuery.sizeOf(context);
+    final wide = size.width >= 900;
+    // Téléphone couché : barre sur le côté pour garder toute la hauteur au contenu.
+    final phoneLandscape = size.width > size.height && size.height < 500;
     final body = _loading
         ? const Center(child: CircularProgressIndicator())
         : _error != null
@@ -313,7 +316,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 _Tab.booklets => _bookletsTab(wide),
                 _Tab.recordings => MediaScreen(backend: _work, agenda: _agenda, canEdit: _canEdit),
                 _Tab.inventory => InventoryScreen(backend: _work, canEdit: _canEdit),
-                _Tab.members => widget.membersPanel ?? const MembersPanel(),
               };
 
     final destinations = [
@@ -325,7 +327,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _Tab.booklets => (Icons.menu_book_outlined, Icons.menu_book_rounded, 'Livrets'), // dans l'onglet Chants
           _Tab.recordings => (Icons.video_library_outlined, Icons.video_library_rounded, wide ? 'Enregistrements' : 'Enreg.'),
           _Tab.inventory => (Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'Inventaire'),
-          _Tab.members => (Icons.groups_outlined, Icons.groups_rounded, 'Membres'),
         },
     ];
     // Les livrets sont dans l'onglet Chants.
@@ -366,44 +367,41 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       Expanded(child: body),
     ]);
-    if (wide) {
+    if (wide || phoneLandscape) {
       return Scaffold(
         floatingActionButton: fab,
         body: Row(children: [
-          NavigationRail(
-            extended: MediaQuery.sizeOf(context).width >= 1200,
+          SafeArea(
+            right: false,
+            child: NavigationRail(
+            extended: size.width >= 1200,
+            labelType: phoneLandscape ? NavigationRailLabelType.selected : null,
+            groupAlignment: phoneLandscape ? 0 : null,
             selectedIndex: index,
             onDestinationSelected: select,
-            leading: const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: AppLogo(size: 48)),
+            leading: phoneLandscape
+                ? null
+                : const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: AppLogo(size: 48)),
             destinations: [
               for (final d in destinations)
                 NavigationRailDestination(icon: Icon(d.$1), selectedIcon: Icon(d.$2), label: Text(d.$3)),
             ],
-          ),
+          )),
           const VerticalDivider(width: 1),
           Expanded(child: SafeArea(child: page)),
         ]),
       );
     }
-    // Beaucoup d'onglets : noms en plus petit pour qu'ils tiennent tous.
-    final small = destinations.length > 5;
     return Scaffold(
       floatingActionButton: fab,
       body: SafeArea(bottom: false, child: page),
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarTheme.of(context).copyWith(
-          labelTextStyle: small
-              ? WidgetStatePropertyAll(Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 10.5, letterSpacing: 0))
-              : null,
-        ),
-        child: NavigationBar(
-          selectedIndex: index,
-          onDestinationSelected: select,
-          destinations: [
-            for (final d in destinations)
-              NavigationDestination(icon: Icon(d.$1), selectedIcon: Icon(d.$2), label: d.$3),
-          ],
-        ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: select,
+        destinations: [
+          for (final d in destinations)
+            NavigationDestination(icon: Icon(d.$1), selectedIcon: Icon(d.$2), label: d.$3),
+        ],
       ),
     );
   }
@@ -511,6 +509,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (ctx) => NewPasswordScreen(onDone: () => Navigator.of(ctx).pop())));
                     }
                     if (v == 'appearance') Appearance.choose(context);
+                    if (v == 'members') {
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => Scaffold(
+                              appBar: AppBar(), body: SafeArea(child: widget.membersPanel ?? const MembersPanel()))));
+                    }
                     if (v == 'logout') {
                       await PushService.disable();
                       Supabase.instance.client.auth.signOut();
@@ -527,6 +530,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     else if (PushService.state.value != PushState.unsupported)
                       // onTap : appelé pendant le toucher, nécessaire pour que l'iPhone pose la question.
                       PopupMenuItem(onTap: _enableNotifications, child: const Text('Activer les notifications')),
+                    if (widget.profile.isAdmin)
+                      const PopupMenuItem(value: 'members', child: Text('Membres, sauvegarde, stockage')),
                     const PopupMenuItem(value: 'appearance', child: Text('Apparence : clair / sombre')),
                     const PopupMenuItem(value: 'password', child: Text('Changer mon mot de passe')),
                     const PopupMenuItem(value: 'logout', child: Text('Se déconnecter')),

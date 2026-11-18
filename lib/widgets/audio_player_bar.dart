@@ -120,7 +120,7 @@ class AudioPlayerBarState extends State<AudioPlayerBar> {
 
   @override
   Widget build(BuildContext context) {
-    if (_error != null) return ListTile(leading: const Icon(Icons.error), title: Text(_error!));
+    if (_error != null) return ListTile(leading: const Icon(Icons.error_rounded), title: Text(_error!));
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
@@ -147,26 +147,26 @@ class AudioPlayerBarState extends State<AudioPlayerBar> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(icon: const Icon(Icons.replay_10), onPressed: () => _seekBy(-10)),
+              IconButton(icon: const Icon(Icons.replay_10_rounded), onPressed: () => _seekBy(-10)),
               StreamBuilder<PlayerState>(
                 stream: _player.playerStateStream,
                 builder: (context, snap) {
                   final playing = snap.data?.playing ?? false;
                   return IconButton.filled(
                     iconSize: 32,
-                    icon: Icon(playing ? Icons.pause : Icons.play_arrow),
+                    icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
                     onPressed: playing ? _player.pause : _player.play,
                   );
                 },
               ),
-              IconButton(icon: const Icon(Icons.forward_10), onPressed: () => _seekBy(10)),
+              IconButton(icon: const Icon(Icons.forward_10_rounded), onPressed: () => _seekBy(10)),
               StreamBuilder<LoopMode>(
                 stream: _player.loopModeStream,
                 builder: (context, snap) {
                   final looping = snap.data == LoopMode.one;
                   return IconButton(
                     tooltip: 'Répéter en boucle',
-                    icon: Icon(looping ? Icons.repeat_one_on : Icons.repeat_one),
+                    icon: Icon(looping ? Icons.repeat_one_on_rounded : Icons.repeat_one_rounded),
                     onPressed: () => _player.setLoopMode(looping ? LoopMode.off : LoopMode.one),
                   );
                 },

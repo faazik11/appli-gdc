@@ -151,7 +151,7 @@ class _PrestationCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
                   if (event.location != null)
-                    _Info(Icons.place_outlined, event.location!, muted),
+                    _Info(Icons.place_rounded, event.location!, muted),
                   if (event.rollCallDone)
                     _Info(Icons.groups_rounded, '${event.attendedCount} présents', muted),
                   if (me == true) _Info(Icons.check_circle_rounded, 'Tu y étais', const Color(0xFF2E7D32)),

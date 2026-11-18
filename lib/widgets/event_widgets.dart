@@ -51,7 +51,7 @@ class KindBadge extends StatelessWidget {
         Icon(kindIcon(kind), size: 13, color: color),
         const SizedBox(width: 4),
         Text(kindLabel(kind),
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 11.5, fontWeight: FontWeight.w600, color: color)),
+            style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: color)),
       ]),
     );
   }
@@ -80,14 +80,14 @@ class DateBlock extends StatelessWidget {
         Text(DateFormat('EEE', 'fr_FR').format(date).replaceAll('.', '').toUpperCase(),
             style: TextStyle(
                 fontFamily: 'Poppins',
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.8,
                 color: rehearsal ? AppColors.goldLight : Colors.white)),
         Text('${date.day}',
             style: const TextStyle(fontFamily: 'DMSerifDisplay', fontSize: 26, height: 1.1, color: Colors.white)),
         Text(DateFormat('MMM', 'fr_FR').format(date).replaceAll('.', ''),
-            style: TextStyle(fontFamily: 'Poppins', fontSize: 11, color: Colors.white.withValues(alpha: 0.85))),
+            style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.white.withValues(alpha: 0.85))),
       ]),
     );
   }

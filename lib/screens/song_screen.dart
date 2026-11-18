@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../models.dart';
@@ -67,6 +68,8 @@ class _SongScreenState extends State<SongScreen> {
   @override
   void initState() {
     super.initState();
+    // On lit les paroles en chantant : l'écran ne doit pas se mettre en veille.
+    WakelockPlus.enable().catchError((_) {});
     final song = widget.song;
     final videoId =
         song.youtubeUrl == null ? null : YoutubePlayerController.convertUrlToId(song.youtubeUrl!);
@@ -89,6 +92,7 @@ class _SongScreenState extends State<SongScreen> {
   @override
   void dispose() {
     _youtube?.close();
+    WakelockPlus.disable().catchError((_) {});
     super.dispose();
   }
 

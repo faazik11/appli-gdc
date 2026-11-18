@@ -589,11 +589,24 @@ class _TaskScreenState extends State<TaskScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (!mine)
               Text((_names[m.authorId] ?? 'Ancien membre').split(' ').first,
-                  style: theme.textTheme.labelMedium?.copyWith(color: AppColors.gold, fontWeight: FontWeight.w600)),
+                  style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w600)),
             Text(m.body, style: theme.textTheme.bodyMedium?.copyWith(color: fg)),
             const SizedBox(height: 2),
-            Text(DateFormat('d MMM, HH:mm', 'fr_FR').format(m.createdAt),
-                style: theme.textTheme.labelSmall?.copyWith(color: fg.withValues(alpha: 0.7))),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(DateFormat('d MMM, HH:mm', 'fr_FR').format(m.createdAt),
+                  style: theme.textTheme.labelSmall?.copyWith(color: fg.withValues(alpha: 0.7))),
+              // Visible, en plus de l'appui long : sinon personne ne sait qu'on peut retirer un message.
+              if (canDelete) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'Retirer ce message',
+                  onPressed: () => _deleteMessage(m),
+                  icon: Icon(Icons.delete_outline_rounded, size: 18, color: fg.withValues(alpha: 0.7)),
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ]),
           ]),
         ),
       ),
