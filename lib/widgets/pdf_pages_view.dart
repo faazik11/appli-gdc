@@ -54,7 +54,8 @@ class PdfPagesViewState extends State<PdfPagesView> {
   final _fallbackKey = GlobalKey<SfPdfViewerState>();
   double _extent = 0;
 
-  static const _gap = 6.0;
+  /// Bande grise entre deux pages, pour bien voir où chacune s'arrête.
+  static const _gap = 14.0;
 
   @override
   void didChangeDependencies() {
@@ -116,7 +117,10 @@ class PdfPagesViewState extends State<PdfPagesView> {
     return LayoutBuilder(builder: (context, box) {
       // Toutes les pages ont la même hauteur : on peut aller directement à n'importe laquelle.
       _extent = box.maxWidth * images.ratio + _gap;
-      return InteractiveViewer(
+      final gapColor = Theme.of(context).brightness == Brightness.dark ? const Color(0xFF3A3F45) : const Color(0xFFD5D7DA);
+      return ColoredBox(
+        color: gapColor,
+        child: InteractiveViewer(
         minScale: 1,
         maxScale: 4,
         child: ListView.builder(
@@ -133,9 +137,13 @@ class PdfPagesViewState extends State<PdfPagesView> {
                       color: Colors.white,
                       child: const Center(child: CircularProgressIndicator()),
                     )
-                  : Image.memory(img, width: box.maxWidth, fit: BoxFit.contain, gaplessPlayback: true),
+                  : ColoredBox(
+                      color: Colors.white,
+                      child: Image.memory(img, width: box.maxWidth, fit: BoxFit.contain, gaplessPlayback: true),
+                    ),
             );
           },
+        ),
         ),
       );
     });
