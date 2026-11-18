@@ -125,10 +125,7 @@ class _EventScreenState extends State<EventScreen> {
                 decoration: BoxDecoration(
                   gradient: _event.isRehearsal
                       ? AppColors.heroGradient
-                      : const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [AppColors.aubergine, Color(0xFF7A4A2A), Color(0xFFB8860B)]),
+                      : const LinearGradient(colors: [Color(0xFF6B4E14), Color(0xFF6B4E14)]),
                 ),
                 child: SafeArea(
                   child: ContentWidth(

@@ -562,88 +562,125 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
+  /// Chants du prochain événement qui en a (programme ou chants à travailler), pour les retrouver vite.
+  late Future<ChoirEvent?> _nextWithSongs = _findNextWithSongs();
+
+  Future<ChoirEvent?> _findNextWithSongs() async {
+    try {
+      final now = DateTime.now().subtract(const Duration(hours: 3));
+      final events = await _agenda.events();
+      return events.where((e) => e.startsAt.isAfter(now) && e.songIds.isNotEmpty).firstOrNull;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Widget _songsTab() {
     final theme = Theme.of(context);
+    final category = _songCategories.where((c) => c.id == _categoryFilter).firstOrNull;
+    final searching = _query.isNotEmpty;
     final songs = _data.songs
         .where((s) => _categoryFilter == null || s.categoryId == _categoryFilter)
         .where((s) =>
-            _query.isEmpty ||
+            !searching ||
             s.title.toLowerCase().contains(_query) ||
             s.tags.any((t) => t.toLowerCase().contains(_query)))
         .toList();
+    final width = MediaQuery.sizeOf(context).width;
+    final columns = width >= 900 ? 4 : 2;
+
+    Widget rows(List<Song> list) => Column(children: [
+          for (final s in list) SongRow(song: s, category: _categoryOf(s), onTap: () => _openSong(s)),
+        ]);
+
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () async {
+        setState(() => _nextWithSongs = _findNextWithSongs());
+        await _load();
+      },
       child: ListView(padding: const EdgeInsets.only(bottom: 100), children: [
         ContentWidth(
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             _libraryHeader(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-              child: Text('${_data.songs.length} chants dans la bibliothèque',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            ),
-            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: TextField(
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search_rounded),
-                  hintText: 'Titre ou mot-clé',
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  hintText: category == null ? 'Rechercher un chant' : 'Rechercher dans ${category.name}',
                 ),
                 onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
               ),
             ),
-            SizedBox(
-              height: 60,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _filterChip(null, 'Tous'),
-                  for (final c in _songCategories) _filterChip(c.id, c.name),
-                ],
-              ),
-            ),
-            if (songs.isEmpty)
-              EmptyState(
-                icon: Icons.search_off_rounded,
-                title: 'Aucun chant trouvé',
-                message: _query.isEmpty ? 'Cette catégorie est encore vide.' : 'Essaie un autre mot.',
-              )
-            else
+            if (category != null)
+              // Dans une catégorie : retour aux 4 cases.
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(children: [
-                  for (final s in songs)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: SongCard(song: s, category: _categoryOf(s), onTap: () => _openSong(s)),
-                    ),
+                padding: const EdgeInsets.fromLTRB(8, 10, 20, 4),
+                child: Row(children: [
+                  IconButton(
+                    tooltip: 'Toutes les catégories',
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    onPressed: () => setState(() => _categoryFilter = null),
+                  ),
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(color: CategoryStyle.of(category.name).color, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(category.name, style: theme.textTheme.titleLarge)),
+                  Text('${songs.length}', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                 ]),
+              )
+            else if (!searching) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: GridView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: 116),
+                  children: [
+                    for (final c in _songCategories)
+                      CategoryCard(
+                        name: c.name,
+                        count: _data.songs.where((s) => s.categoryId == c.id).length,
+                        countLabel: 'chants',
+                        onTap: () => setState(() => _categoryFilter = c.id),
+                      ),
+                  ],
+                ),
               ),
+              FutureBuilder<ChoirEvent?>(
+                future: _nextWithSongs,
+                builder: (context, snap) {
+                  final e = snap.data;
+                  final list = e == null
+                      ? const <Song>[]
+                      : [for (final id in e.songIds) ..._data.songs.where((s) => s.id == id)];
+                  if (list.isEmpty) return const SizedBox.shrink(); // rien à montrer : section cachée
+                  final when = DateFormat('EEE d MMM', 'fr_FR').format(e!.startsAt);
+                  return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    SectionHeader(e.isRehearsal ? 'Répétition du $when' : 'Prestation du $when'),
+                    rows(list),
+                  ]);
+                },
+              ),
+            ],
+            if (category != null || searching) ...[
+              const SizedBox(height: 6),
+              if (songs.isEmpty)
+                EmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: 'Aucun chant trouvé',
+                  message: searching ? 'Essaie un autre mot.' : 'Cette catégorie est encore vide.',
+                )
+              else
+                rows(songs),
+            ],
           ]),
         ),
       ]),
-    );
-  }
-
-  Widget _filterChip(int? id, String label) {
-    final selected = _categoryFilter == id;
-    final style = CategoryStyle.of(label);
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        avatar: id == null ? null : Icon(style.icon, size: 18, color: selected ? Colors.white : style.colors.first),
-        label: Text(label),
-        selected: selected,
-        showCheckmark: false,
-        selectedColor: id == null ? AppColors.aubergine : style.colors.first,
-        labelStyle: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
-          color: selected ? Colors.white : Theme.of(context).colorScheme.onSurface,
-        ),
-        onSelected: (_) => setState(() => _categoryFilter = id),
-      ),
     );
   }
 
@@ -651,8 +688,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _bookletsTab(bool wide) {
     final theme = Theme.of(context);
-    final width = MediaQuery.sizeOf(context).width;
-    final columns = width >= 1100 ? 4 : (width >= 700 ? 3 : (width >= 420 ? 2 : 1));
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(padding: const EdgeInsets.only(bottom: 100), children: [
@@ -691,27 +726,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     : null,
               )
             else
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    mainAxisExtent: 158,
-                  ),
-                  children: [
-                    for (final b in _data.booklets)
-                      BookletCard(
-                        booklet: b,
-                        onTap: () => _openBooklet(b),
-                        menu: _canEdit ? _bookletMenu(b) : null,
-                      ),
-                  ],
-                ),
-              ),
+              Column(children: [
+                for (final b in _data.booklets)
+                  BookletRow(booklet: b, onTap: () => _openBooklet(b), menu: _canEdit ? _bookletMenu(b) : null),
+              ]),
           ]),
         ),
       ]),
@@ -719,7 +737,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _bookletMenu(Booklet b) => PopupMenuButton<String>(
-        icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+        icon: const Icon(Icons.more_vert_rounded),
         onSelected: (action) async {
           if (action == 'edit') _openBookletEditor(booklet: b);
           if (action == 'delete' && await _confirm(context, 'Supprimer « ${b.title} » ?')) {
