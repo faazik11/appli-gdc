@@ -10,7 +10,7 @@ class AppColors {
   static const night = Color(0xFF15111C);
   static const nightSurface = Color(0xFF211B2C);
 
-  /// Vert foncé choisi par Rayan pour les cases de catégories.
+  /// Vert foncé choisi par Rayan pour les Chants Arabe ; les autres catégories ont un ton aussi foncé.
   static const categoryGreen = Color(0xFF06402B);
 
   /// Fond des bandeaux : couleur unie (Rayan préfère sans dégradé).
@@ -153,13 +153,13 @@ class CategoryStyle {
 
   static CategoryStyle of(String name) => switch (name) {
         'Chants Français' => const CategoryStyle(
-            Icons.music_note_rounded, [Color(0xFF34508A)], 'Répertoire francophone'),
+            Icons.music_note_rounded, [Color(0xFF0B2A5B)], 'Répertoire francophone'),
         'Chants Arabe' => const CategoryStyle(
-            Icons.nights_stay_rounded, [Color(0xFF1F6B5A)], 'Répertoire arabe'),
+            Icons.nights_stay_rounded, [AppColors.categoryGreen], 'Répertoire arabe'),
         'Chants Mariage' => const CategoryStyle(
-            Icons.favorite_rounded, [Color(0xFF9A3B5A)], 'Pour les cérémonies'),
+            Icons.favorite_rounded, [Color(0xFF5E0B15)], 'Pour les cérémonies'),
         'Chants International' => const CategoryStyle(
-            Icons.public_rounded, [Color(0xFF9A5520)], 'Du monde entier'),
+            Icons.public_rounded, [Color(0xFF6B3A06)], 'Du monde entier'),
         'Livrets' => const CategoryStyle(
             Icons.menu_book_rounded, [AppColors.aubergine], 'Programmes des prestations'),
         _ => const CategoryStyle(

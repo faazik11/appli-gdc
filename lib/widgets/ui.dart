@@ -139,6 +139,7 @@ class SongRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
+    final dot = CategoryStyle.of(category?.name ?? '').color;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -150,7 +151,10 @@ class SongRow extends StatelessWidget {
           Container(
             width: 10,
             height: 10,
-            decoration: BoxDecoration(color: CategoryStyle.of(category?.name ?? '').color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                // Tons très foncés : éclaircis en mode sombre pour rester visibles.
+                color: theme.brightness == Brightness.dark ? Color.lerp(dot, Colors.white, 0.4) : dot,
+                shape: BoxShape.circle),
           ),
           const SizedBox(width: 14),
           Expanded(child: Text(song.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyLarge)),
@@ -225,7 +229,7 @@ class CategoryCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: Ink(
-        decoration: const BoxDecoration(color: AppColors.categoryGreen),
+        decoration: BoxDecoration(color: style.color),
         child: InkWell(
           onTap: onTap,
           child: Padding(
