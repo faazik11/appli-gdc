@@ -13,11 +13,19 @@
         "repo": "addyosmani/agent-skills",
         "ref": "0.6.13"
       }
+    },
+    "ui-ux-pro-max-skill": {
+      "source": {
+        "source": "github",
+        "repo": "nextlevelbuilder/ui-ux-pro-max-skill",
+        "ref": "v2.15.0"
+      }
     }
   },
   "enabledPlugins": {
     "ponytail@ponytail": true,
-    "agent-skills@addy-agent-skills": true
+    "agent-skills@addy-agent-skills": true,
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true
   },
   "hooks": {
     "SessionStart": [
