@@ -11,7 +11,7 @@ Application du Groupe de Chant Narbonne (GDC) :
   10 Go gratuits, fiches dans la table `videos`).
 - **Inventaire** : matériel du local, tenues et vêtements, avec photos.
 - **Annonces, tâches et notifications** sur le téléphone.
-- **Membres** : rôles, sauvegarde complète et jauge de stockage (admins).
+- **Membres** (menu du compte, cercle des initiales) : rôles, sauvegarde complète et jauge de stockage (admins).
 
 L'appli marche hors connexion pour tout ce qui est déjà ouvert une fois.
 

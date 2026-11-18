@@ -109,7 +109,7 @@ class _VideosScreenState extends State<VideosScreen> {
                 )
               else if (items.isEmpty)
                 EmptyState(
-                  icon: Icons.videocam_outlined,
+                  icon: Icons.videocam_rounded,
                   title: 'Aucune vidéo',
                   message: widget.canEdit
                       ? 'Appuie sur « Ajouter une vidéo » pour mettre en ligne la vidéo d\'une prestation. '
@@ -287,7 +287,7 @@ class _VideoFormScreenState extends State<VideoFormScreen> {
                 if (file != null)
                   Card(
                     child: ListTile(
-                      leading: const Icon(Icons.movie_outlined),
+                      leading: const Icon(Icons.movie_rounded),
                       title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text([
                         formatBytes(file.size),
@@ -423,7 +423,7 @@ class _VideoScreenState extends State<VideoScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Vidéo'), actions: [
         if (widget.canEdit) ...[
-          IconButton(tooltip: 'Modifier', icon: const Icon(Icons.edit_outlined), onPressed: _edit),
+          IconButton(tooltip: 'Modifier', icon: const Icon(Icons.edit_rounded), onPressed: _edit),
           IconButton(tooltip: 'Supprimer', icon: const Icon(Icons.delete_outline_rounded), onPressed: _delete),
         ],
       ]),

@@ -23,7 +23,7 @@ class ToolsScreen extends StatelessWidget {
           title: const Text('Outils'),
           bottom: const TabBar(tabs: [
             Tab(icon: Icon(Icons.tune_rounded), text: 'Diapason'),
-            Tab(icon: Icon(Icons.timer_outlined), text: 'Métronome'),
+            Tab(icon: Icon(Icons.timer_rounded), text: 'Métronome'),
           ]),
         ),
         body: const TabBarView(children: [_Tuner(), _Metronome()]),

@@ -104,7 +104,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
       subtitle: Text(status),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (pickedName != null || hasExisting)
-          IconButton(tooltip: 'Retirer', icon: const Icon(Icons.close), onPressed: onClear),
+          IconButton(tooltip: 'Retirer', icon: const Icon(Icons.close_rounded), onPressed: onClear),
         OutlinedButton(onPressed: onPick, child: const Text('Choisir')),
       ]),
     );
@@ -117,7 +117,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
         title: Text(widget.song == null ? 'Nouveau chant' : 'Modifier le chant'),
         actions: [
           if (widget.song != null)
-            IconButton(tooltip: 'Supprimer', icon: const Icon(Icons.delete), onPressed: _delete),
+            IconButton(tooltip: 'Supprimer', icon: const Icon(Icons.delete_rounded), onPressed: _delete),
         ],
       ),
       body: Form(
@@ -169,7 +169,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
             ),
             const SizedBox(height: 16),
             _fileRow(
-              icon: Icons.description,
+              icon: Icons.description_rounded,
               label: 'Paroles (PDF)',
               pickedName: _pdf?.name,
               hasExisting: _keepPdf,
@@ -183,7 +183,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
               }),
             ),
             _fileRow(
-              icon: Icons.audiotrack,
+              icon: Icons.audiotrack_rounded,
               label: 'Audio (MP3, M4A, WAV…)',
               pickedName: _audio?.name,
               hasExisting: _keepAudio,
@@ -223,7 +223,7 @@ class _SongFormScreenState extends State<SongFormScreen> {
               onPressed: _saving ? null : _save,
               icon: _saving
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.save),
+                  : const Icon(Icons.save_rounded),
               label: const Text('Enregistrer'),
             ),
           ],

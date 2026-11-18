@@ -188,7 +188,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Card(
                 child: ListTile(
-                  leading: const Icon(Icons.audio_file_outlined),
+                  leading: const Icon(Icons.audio_file_rounded),
                   title: Text(a.name, maxLines: 2, overflow: TextOverflow.ellipsis),
                   subtitle: Text([
                     if (a.seconds != null) formatDuration(a.seconds),

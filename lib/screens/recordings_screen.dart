@@ -195,7 +195,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Wrap(spacing: 8, runSpacing: 8, children: [
         chip(Icons.tune_rounded, 'Diapason', 0),
-        chip(Icons.timer_outlined, 'Métronome', 1),
+        chip(Icons.timer_rounded, 'Métronome', 1),
         if (widget.canEdit)
           ActionChip(
             avatar: Icon(Icons.upload_file_rounded, size: 18, color: tint),
@@ -240,7 +240,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
                     child: Card(
                       color: AppColors.gold.withValues(alpha: 0.15),
                       child: ListTile(
-                        leading: const Icon(Icons.cloud_upload_outlined),
+                        leading: const Icon(Icons.cloud_upload_rounded),
                         title: Text(recordingTitle(p.recordedAt, p.title)),
                         subtitle: Text('${formatDuration(p.durationSeconds)} · gardé sur ce téléphone, pas encore en ligne'),
                         trailing: _sending == p.key
@@ -286,7 +286,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
                                 decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(14)),
                                 child: Column(children: [
                                   Text(DateFormat('EEE', 'fr_FR').format(r.recordedAt).toUpperCase().replaceAll('.', ''),
-                                      style: const TextStyle(fontFamily: 'Poppins', fontSize: 11, color: AppColors.goldLight, fontWeight: FontWeight.w600)),
+                                      style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, color: AppColors.goldLight, fontWeight: FontWeight.w600)),
                                   Text('${r.recordedAt.day}',
                                       style: const TextStyle(fontFamily: 'DMSerifDisplay', fontSize: 24, color: Colors.white, height: 1.1)),
                                 ]),
@@ -562,7 +562,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
                     child: FutureBuilder<List<String>>(
                       future: _urls,
                       builder: (context, snap) => snap.hasError
-                          ? ListTile(leading: const Icon(Icons.error_outline), title: Text('Lecture impossible : ${explain(snap.error!)}'))
+                          ? ListTile(leading: const Icon(Icons.error_outline_rounded), title: Text('Lecture impossible : ${explain(snap.error!)}'))
                           : !snap.hasData
                               ? const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
                               : AudioPlayerBar.parts(
@@ -626,7 +626,7 @@ class _RecordingDetailScreenState extends State<RecordingDetailScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
-                        icon: const Icon(Icons.bookmark_add_outlined),
+                        icon: const Icon(Icons.bookmark_add_rounded),
                         label: const Text('Poser un repère ici'),
                         onPressed: _addMarker,
                       ),
