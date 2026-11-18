@@ -261,7 +261,7 @@ Future<Uint8List> applyLyricsEdits(
             text,
             f,
             brush: PdfSolidBrush(PdfColor((c.r * 255).round(), (c.g * 255).round(), (c.b * 255).round())),
-            bounds: Rect.fromLTWH(box.left, s.box.bottom - f.height * 0.82, box.width, f.height * 1.6),
+            bounds: Rect.fromLTWH(box.left, s.box.bottom - f.height * 1.03, box.width, f.height * 1.6),
             format: format,
           );
         }
